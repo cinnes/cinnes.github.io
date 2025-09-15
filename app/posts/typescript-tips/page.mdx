@@ -1,0 +1,157 @@
+---
+title: TypeScript Tips for Better Code Quality
+date: 2024/3/05
+description: Advanced TypeScript techniques to write more robust and maintainable code
+tag: typescript, javascript, development, best-practices
+author: Alex Morgan
+---
+
+# TypeScript Tips for Better Code Quality
+
+## Why TypeScript Matters
+
+TypeScript brings static typing to JavaScript, helping catch errors at compile time and improving code maintainability. Here are advanced tips to level up your TypeScript skills.
+
+## 1. Leverage Union Types and Type Guards
+
+Use union types for flexible APIs and type guards for runtime safety:
+
+```typescript
+type Status = 'loading' | 'success' | 'error';
+
+interface LoadingState {
+  status: 'loading';
+}
+
+interface SuccessState {
+  status: 'success';
+  data: any[];
+}
+
+interface ErrorState {
+  status: 'error';
+  error: string;
+}
+
+type AppState = LoadingState | SuccessState | ErrorState;
+
+function handleState(state: AppState) {
+  switch (state.status) {
+    case 'loading':
+      return 'Loading...';
+    case 'success':
+      return `Loaded ${state.data.length} items`;
+    case 'error':
+      return `Error: ${state.error}`;
+  }
+}
+```
+
+## 2. Create Utility Types
+
+Build reusable utility types for common patterns:
+
+```typescript
+// Make all properties optional except specified ones
+type PartialExcept<T, K extends keyof T> = Partial<T> & Pick<T, K>;
+
+// Deep readonly type
+type DeepReadonly<T> = {
+  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
+};
+
+// Extract function return type
+type ApiResponse<T> = T extends (...args: any[]) => Promise<infer R> ? R : never;
+```
+
+## 3. Use Template Literal Types
+
+Create dynamic string types:
+
+```typescript
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type ApiEndpoint = `/api/${string}`;
+type RequestConfig<M extends HttpMethod> = {
+  method: M;
+  url: ApiEndpoint;
+  data?: M extends 'POST' | 'PUT' ? Record<string, any> : never;
+};
+
+// Usage
+const config: RequestConfig<'POST'> = {
+  method: 'POST',
+  url: '/api/users',
+  data: { name: 'John' } // Required for POST
+};
+```
+
+## 4. Implement Branded Types
+
+Add compile-time guarantees for primitive types:
+
+```typescript
+type UserId = string & { readonly brand: unique symbol };
+type Email = string & { readonly brand: unique symbol };
+
+function createUserId(id: string): UserId {
+  // Validation logic here
+  return id as UserId;
+}
+
+function sendEmail(userId: UserId, email: Email) {
+  // Implementation
+}
+
+// This prevents mixing up string types
+const id = createUserId("user123");
+const email = "user@example.com" as Email;
+sendEmail(id, email); // ✅ Correct
+// sendEmail(email, id); // ❌ Type error
+```
+
+## 5. Advanced Conditional Types
+
+Create types that adapt based on conditions:
+
+```typescript
+type NonNullable<T> = T extends null | undefined ? never : T;
+
+type FlattenArray<T> = T extends (infer U)[] ? U : T;
+
+type ApiResult<T> = T extends { error: any } 
+  ? { success: false; error: T['error'] }
+  : { success: true; data: T };
+
+// Conditional property types
+type FormField<T> = {
+  value: T;
+  error?: string;
+  validate: T extends string 
+    ? (value: string) => boolean
+    : T extends number
+    ? (value: number) => boolean
+    : (value: T) => boolean;
+};
+```
+
+## 6. Strict Configuration
+
+Use strict TypeScript settings for better type safety:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
+```
+
+## Conclusion
+
+These TypeScript techniques help you write more reliable, self-documenting code. Start with union types and type guards, then gradually incorporate more advanced features as your projects grow in complexity.
