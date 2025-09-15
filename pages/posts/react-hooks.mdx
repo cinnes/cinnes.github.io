@@ -72,38 +72,6 @@ function Timer() {
 }
 ```
 
-## 4. Manage Complex State with useReducer
-
-For complex state logic, useReducer is often clearer than useState:
-
-```jsx
-function reducer(state, action) {
-  switch (action.type) {
-    case 'increment':
-      return { count: state.count + 1 };
-    case 'decrement':
-      return { count: state.count - 1 };
-    case 'reset':
-      return { count: 0 };
-    default:
-      throw new Error();
-  }
-}
-
-function Counter() {
-  const [state, dispatch] = useReducer(reducer, { count: 0 });
-  
-  return (
-    <div>
-      Count: {state.count}
-      <button onClick={() => dispatch({ type: 'increment' })}>+</button>
-      <button onClick={() => dispatch({ type: 'decrement' })}>-</button>
-      <button onClick={() => dispatch({ type: 'reset' })}>Reset</button>
-    </div>
-  );
-}
-```
-
 ## Conclusion
 
 React Hooks provide powerful tools for building modern React applications. By following these best practices, you'll write more maintainable, performant, and reusable code.
