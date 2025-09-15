@@ -1,21 +1,9 @@
-import { Footer, Layout } from 'nextra-theme-blog'
-import { Head } from 'nextra/components'
-import 'nextra-theme-blog/style.css'
+import { ReactNode } from 'react'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <Head />
-      <body>
-        <Layout>
-          {children}
-          <Footer />
-        </Layout>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
