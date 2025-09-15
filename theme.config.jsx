@@ -1,5 +1,5 @@
 export default {
-  footer: <p>© 2024 Personal Blog</p>,
+  footer: <p>© 2024 Tech Insights Blog</p>,
   head: ({ meta }) => (
     <>
       {meta.description && (
@@ -11,8 +11,16 @@ export default {
   ),
   readMore: 'Read More →',
   postFooter: null,
-  darkMode: false,
+  darkMode: true,
   navs: [
+    {
+      url: '/posts',
+      name: 'All Posts'
+    },
+    {
+      url: '/about',
+      name: 'About'
+    },
     {
       url: 'https://github.com/cinnes',
       name: 'GitHub'
