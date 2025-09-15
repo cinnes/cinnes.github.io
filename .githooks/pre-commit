@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+
+# Pre-commit hook for comprehensive code quality checks
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged for staged files
+echo "📝 Running lint-staged..."
+npx lint-staged
+
+# Type checking
+echo "🔤 Running TypeScript type checking..."
+npm run type-check
+
+# Run affected tests
+echo "🧪 Running tests for staged files..."
+# This will be handled by lint-staged, but we can add additional test checks here
+
+echo "✅ Pre-commit checks passed!"

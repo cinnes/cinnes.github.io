@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+
+# Pre-push hook for comprehensive validation
+set -e
+
+echo "🚀 Running pre-push checks..."
+
+# Full lint check
+echo "🔍 Running full ESLint check..."
+npm run lint:check
+
+# Type checking
+echo "🔤 Running TypeScript type checking..."
+npm run type-check
+
+# Full test suite
+echo "🧪 Running full test suite..."
+npm run test
+
+# Format check
+echo "💅 Checking code formatting..."
+npm run format:check
+
+# Build check
+echo "🏗️ Testing production build..."
+npm run build
+
+echo "✅ All pre-push checks passed! Ready to push 🎉"

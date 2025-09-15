@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+
+# Commit message hook for conventional commits
+set -e
+
+# Read the commit message
+commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,50}'
+
+if ! grep -qE "$commit_regex" "$1"; then
+    echo "❌ Invalid commit message format!"
+    echo ""
+    echo "Commit messages should follow the Conventional Commits specification:"
+    echo "  <type>[optional scope]: <description>"
+    echo ""
+    echo "Examples:"
+    echo "  feat: add new blog post component"
+    echo "  fix(ui): resolve navigation menu bug"
+    echo "  docs: update README with setup instructions"
+    echo "  test: add unit tests for layout component"
+    echo ""
+    echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+    echo ""
+    exit 1
+fi
+
+echo "✅ Commit message format is valid"
