@@ -1,20 +1,19 @@
-'use client'
-
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { sampleBlogPosts } from '../../../lib/blogData'
 import { getRelatedPosts } from '../../../lib/blogUtils'
 import BlogPost from '../../../components/BlogPost'
 import BlogList from '../../../components/BlogList'
+import ScrollToTop from '../../../components/ScrollToTop'
 
 interface BlogPostPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
-export default function BlogPostPage({ params }: BlogPostPageProps) {
-  const { slug } = params
+export default async function BlogPostPage({ params }: BlogPostPageProps) {
+  const { slug } = await params
 
   // Find the post by slug
   const post = sampleBlogPosts.find(p => p.slug === slug)
@@ -75,12 +74,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
             </Link>
             <p className="text-gray-500 text-sm">© 2024 Personal Blog</p>
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="text-gray-500 hover:text-gray-700 transition-colors text-sm"
-              >
-                Back to Top ↑
-              </button>
+              <ScrollToTop />
             </div>
           </div>
         </footer>
