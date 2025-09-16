@@ -1,5 +1,6 @@
 import type { AppProps } from 'next/app'
 import Link from 'next/link'
+import { Layout } from 'nextra-theme-blog'
 import 'nextra-theme-blog/style.css'
 
 const navigation = [
@@ -66,7 +67,7 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         }
       `}</style>
-      <div className="nx-container">
+      <Layout>
         <nav className="custom-nav">
           {navigation.map(item =>
             item.url.startsWith('http') ? (
@@ -86,7 +87,7 @@ export default function App({ Component, pageProps }: AppProps) {
           )}
         </nav>
         <Component {...pageProps} />
-      </div>
+      </Layout>
     </>
   )
 }
