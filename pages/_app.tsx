@@ -76,10 +76,17 @@ export default function App({ Component, pageProps }: AppProps) {
           max-width: none !important;
         }
 
-        /* Container & Layout - SWR-style constrained width */
-        body .nx-container,
-        html body .nx-container,
-        .nx-container {
+        /* Container & Layout - Target all possible containers */
+        main,
+        .main,
+        #__next,
+        [data-nextra-main],
+        .nextra-container,
+        .container,
+        .layout,
+        .content,
+        .page,
+        .wrapper {
           max-width: 1024px !important;
           width: 100% !important;
           margin: 0 auto !important;
@@ -88,9 +95,11 @@ export default function App({ Component, pageProps }: AppProps) {
           background-color: #00ff00 !important;
         }
 
-        body .nx-content,
-        html body .nx-content,
-        .nx-content {
+        article,
+        .article,
+        .content-wrapper,
+        .post,
+        .blog-post {
           max-width: 768px !important;
           margin: 0 auto !important;
           width: 100% !important;
