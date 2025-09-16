@@ -4,7 +4,7 @@ export default {
     <>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="description" content={meta.description || "side effect shepherd"} />
-      <meta name="author" content={meta.author || "Blog Author"} />
+      <meta name="author" content={meta.author || "cinnes"} />
       <title>{title ? `${title} – cinnes` : 'cinnes'}</title>
     </>
   ),
@@ -32,7 +32,7 @@ export default {
       name: 'Contact'
     },
     {
-      url: 'https://github.com/yourusername',
+      url: 'https://github.com/cinnes',
       name: 'GitHub'
     }
   ],
