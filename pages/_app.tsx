@@ -64,6 +64,20 @@ export default function App({ Component, pageProps }: AppProps) {
           -moz-osx-font-smoothing: grayscale;
         }
 
+        /* Force wide layout - very aggressive overrides */
+        html,
+        html *,
+        body,
+        body *,
+        main,
+        main *,
+        article,
+        article *,
+        .nx-container,
+        .nx-content {
+          max-width: none !important;
+        }
+
         /* Container & Layout - Full Width Like SWR */
         body .nx-container,
         html body .nx-container,
@@ -122,7 +136,7 @@ export default function App({ Component, pageProps }: AppProps) {
           padding: var(--spacing-xl) 0 !important;
           border-bottom: 1px solid var(--border-color) !important;
           margin-bottom: var(--spacing-3xl) !important;
-          background-color: var(--bg-primary) !important;
+          background-color: #ff0000 !important;
           backdrop-filter: blur(12px) !important;
         }
 
