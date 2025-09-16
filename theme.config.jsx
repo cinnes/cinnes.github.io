@@ -1,33 +1,51 @@
 export default {
-  logo: <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>My Blog</span>,
-  project: {
-    link: 'https://github.com/cinnes'
-  },
-  footer: <p>© {new Date().getFullYear()} My Blog</p>,
-  head: ({ meta }) => (
+  // Basic blog information
+  head: ({ title, meta }) => (
     <>
-      {meta.description && (
-        <meta name="description" content={meta.description} />
-      )}
-      {meta.tag && <meta name="keywords" content={meta.tag} />}
-      {meta.author && <meta name="author" content={meta.author} />}
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta name="description" content={meta.description || "A blog about web development and programming."} />
+      <meta name="author" content={meta.author || "Blog Author"} />
+      <title>{title ? `${title} – My Blog` : 'My Blog'}</title>
     </>
   ),
-  readMore: 'Read More →',
-  postFooter: null,
-  darkMode: true,
+  
+  // Footer configuration
+  footer: (
+    <small style={{ display: 'block', marginTop: '8rem' }}>
+      <time>{new Date().getFullYear()}</time> © My Blog.
+      <a href="/feed.xml">RSS</a>
+    </small>
+  ),
+
+  // Navigation links
   navs: [
-    {
-      url: '/',
-      name: 'Blog'
-    },
     {
       url: '/about',
       name: 'About'
     },
     {
-      url: '/examples',
-      name: 'Examples'
+      url: '/projects', 
+      name: 'Projects'
+    },
+    {
+      url: '/contact',
+      name: 'Contact'
+    },
+    {
+      url: 'https://github.com/yourusername',
+      name: 'GitHub'
     }
-  ]
+  ],
+
+  // Dark mode support
+  darkMode: true,
+  
+  // Date formatting
+  dateFormatter: (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
 }
