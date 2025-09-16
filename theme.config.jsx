@@ -14,12 +14,24 @@ export default {
   darkMode: true,
   navs: [
     {
+      url: '/',
+      name: 'Home'
+    },
+    {
       url: '/posts',
-      name: 'All Posts'
+      name: 'Posts'
+    },
+    {
+      url: '/musings',
+      name: 'Musings'
     },
     {
       url: '/about',
       name: 'About'
+    },
+    {
+      url: '/projects',
+      name: 'Projects'
     },
     {
       url: 'https://github.com/cinnes',
