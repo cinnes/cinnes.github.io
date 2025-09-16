@@ -3,16 +3,16 @@ export default {
   head: ({ title, meta }) => (
     <>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <meta name="description" content={meta.description || "A blog about web development and programming."} />
+      <meta name="description" content={meta.description || "side effect shepherd"} />
       <meta name="author" content={meta.author || "Blog Author"} />
-      <title>{title ? `${title} – My Blog` : 'My Blog'}</title>
+      <title>{title ? `${title} – cinnes` : 'cinnes'}</title>
     </>
   ),
   
   // Footer configuration
   footer: (
     <small style={{ display: 'block', marginTop: '8rem' }}>
-      <time>{new Date().getFullYear()}</time> © My Blog.
+      <time>{new Date().getFullYear()}</time> © cinnes.
       <a href="/feed.xml">RSS</a>
     </small>
   ),

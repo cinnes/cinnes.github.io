@@ -5,8 +5,8 @@ import { getPageMap } from 'nextra/page-map'
 import 'nextra-theme-blog/style.css'
 
 export const metadata = {
-  title: 'My Blog',
-  description: 'A blog about web development and programming.',
+  title: 'cinnes',
+  description: 'side effect shepherd',
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <ThemeSwitch />
           </Navbar>
           {children}
-          <Footer>{new Date().getFullYear()} © My Blog</Footer>
+          <Footer>{new Date().getFullYear()} © cinnes</Footer>
         </Layout>
       </body>
     </html>
