@@ -3,11 +3,8 @@ import Link from 'next/link'
 import 'nextra-theme-blog/style.css'
 
 const navigation = [
-  { url: '/', name: 'Home' },
-  { url: '/posts', name: 'Posts' },
-  { url: '/musings', name: 'Musings' },
+  { url: '/', name: 'Blog' },
   { url: '/about', name: 'About' },
-  { url: '/projects', name: 'Projects' },
   { url: 'https://github.com/cinnes', name: 'GitHub' },
 ]
 
