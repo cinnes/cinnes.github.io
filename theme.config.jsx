@@ -1,9 +1,9 @@
 export default {
-  logo: <span style={{ fontWeight: 600 }}>Your Blog</span>,
+  logo: <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>My Blog</span>,
   project: {
     link: 'https://github.com/cinnes'
   },
-  footer: <p>© {new Date().getFullYear()} Your Blog</p>,
+  footer: <p>© {new Date().getFullYear()} My Blog</p>,
   head: ({ meta }) => (
     <>
       {meta.description && (
@@ -24,6 +24,10 @@ export default {
     {
       url: '/about',
       name: 'About'
+    },
+    {
+      url: '/examples',
+      name: 'Examples'
     }
   ]
 }

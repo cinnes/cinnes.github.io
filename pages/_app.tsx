@@ -231,16 +231,84 @@ export default function App({ Component, pageProps }: AppProps) {
           color: var(--text-primary) !important;
         }
 
+        /* SWR-style Navigation */
+        nav {
+          border-bottom: 1px solid var(--border-color) !important;
+          background-color: var(--bg-primary) !important;
+          backdrop-filter: blur(12px) !important;
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 1000 !important;
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+        }
+
+        nav > div,
+        nav .nav-container {
+          max-width: 900px !important;
+          margin: 0 auto !important;
+          padding: 0 var(--container-padding) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          height: 64px !important;
+        }
+
+        nav .nav-links,
+        nav ul {
+          display: flex !important;
+          align-items: center !important;
+          gap: var(--spacing-xl) !important;
+          list-style: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        nav a {
+          color: var(--text-secondary) !important;
+          text-decoration: none !important;
+          font-weight: 500 !important;
+          font-size: 0.875rem !important;
+          padding: var(--spacing-sm) var(--spacing-md) !important;
+          border-radius: var(--radius) !important;
+          transition: all 0.15s ease !important;
+          letter-spacing: -0.025em !important;
+        }
+
+        nav a:hover {
+          background-color: var(--bg-accent) !important;
+          color: var(--text-primary) !important;
+        }
+
+        nav .logo,
+        nav .blog-logo {
+          color: var(--text-primary) !important;
+          font-weight: 600 !important;
+          font-size: 1.125rem !important;
+          text-decoration: none !important;
+        }
+
+        nav .logo:hover,
+        nav .blog-logo:hover {
+          background-color: transparent !important;
+          color: var(--text-primary) !important;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
-          .custom-nav {
-            gap: var(--spacing-md);
-            padding: var(--spacing-md) 0;
+          nav > div,
+          nav .nav-container {
+            padding: 0 var(--spacing-md) !important;
+            height: 56px !important;
           }
-          
-          .custom-nav a {
-            font-size: 0.8125rem;
-            padding: var(--spacing-xs) var(--spacing-sm);
+
+          nav .nav-links,
+          nav ul {
+            gap: var(--spacing-md) !important;
+          }
+
+          nav a {
+            font-size: 0.8125rem !important;
+            padding: var(--spacing-xs) var(--spacing-sm) !important;
           }
 
           h1 { font-size: 1.875rem !important; }
