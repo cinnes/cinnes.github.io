@@ -15,8 +15,8 @@ export default function App({ Component, pageProps }: AppProps) {
       <style jsx global>{`
         /* SWR-inspired Design System */
         :root {
-          --max-width: 1400px;
-          --content-width: 1200px;
+          --max-width: 1024px;
+          --content-width: 768px;
           --container-padding: 2rem;
           --spacing-xs: 0.25rem;
           --spacing-sm: 0.5rem;
@@ -80,7 +80,7 @@ export default function App({ Component, pageProps }: AppProps) {
         body .nx-container,
         html body .nx-container,
         .nx-container {
-          max-width: 1400px !important;
+          max-width: 1024px !important;
           width: 100% !important;
           margin: 0 auto !important;
           padding-left: var(--container-padding) !important;
@@ -90,7 +90,7 @@ export default function App({ Component, pageProps }: AppProps) {
         body .nx-content,
         html body .nx-content,
         .nx-content {
-          max-width: 1200px !important;
+          max-width: 768px !important;
           margin: 0 auto !important;
           width: 100% !important;
         }
