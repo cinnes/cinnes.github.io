@@ -15,8 +15,8 @@ export default function App({ Component, pageProps }: AppProps) {
       <style jsx global>{`
         /* SWR-inspired Design System */
         :root {
-          --max-width: none;
-          --content-width: 120ch;
+          --max-width: 1400px;
+          --content-width: 1200px;
           --container-padding: 2rem;
           --spacing-xs: 0.25rem;
           --spacing-sm: 0.5rem;
@@ -64,7 +64,7 @@ export default function App({ Component, pageProps }: AppProps) {
           -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Force wide layout - very aggressive overrides */
+        /* SWR-style layout - specific width like their site */
         html,
         html *,
         body,
@@ -72,19 +72,17 @@ export default function App({ Component, pageProps }: AppProps) {
         main,
         main *,
         article,
-        article *,
-        .nx-container,
-        .nx-content {
+        article * {
           max-width: none !important;
         }
 
-        /* Container & Layout - Full Width Like SWR */
+        /* Container & Layout - SWR-style constrained width */
         body .nx-container,
         html body .nx-container,
         .nx-container {
-          max-width: none !important;
+          max-width: 1400px !important;
           width: 100% !important;
-          margin: 0 !important;
+          margin: 0 auto !important;
           padding-left: var(--container-padding) !important;
           padding-right: var(--container-padding) !important;
         }
@@ -92,7 +90,7 @@ export default function App({ Component, pageProps }: AppProps) {
         body .nx-content,
         html body .nx-content,
         .nx-content {
-          max-width: var(--content-width) !important;
+          max-width: 1200px !important;
           margin: 0 auto !important;
           width: 100% !important;
         }
@@ -136,7 +134,7 @@ export default function App({ Component, pageProps }: AppProps) {
           padding: var(--spacing-xl) 0 !important;
           border-bottom: 1px solid var(--border-color) !important;
           margin-bottom: var(--spacing-3xl) !important;
-          background-color: #ff0000 !important;
+          background-color: var(--bg-primary) !important;
           backdrop-filter: blur(12px) !important;
         }
 
@@ -189,7 +187,7 @@ export default function App({ Component, pageProps }: AppProps) {
         p {
           color: var(--text-secondary) !important;
           margin-bottom: var(--spacing-md) !important;
-          max-width: 120ch;
+          max-width: 75ch;
         }
 
         /* Enhanced Code Blocks */
