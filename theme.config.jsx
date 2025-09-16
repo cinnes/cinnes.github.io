@@ -1,5 +1,9 @@
 export default {
-  footer: <p>© 2024 Tech Insights Blog</p>,
+  logo: <span style={{ fontWeight: 600 }}>Your Blog</span>,
+  project: {
+    link: 'https://github.com/cinnes'
+  },
+  footer: <p>© {new Date().getFullYear()} Your Blog</p>,
   head: ({ meta }) => (
     <>
       {meta.description && (
@@ -15,27 +19,11 @@ export default {
   navs: [
     {
       url: '/',
-      name: 'Home'
-    },
-    {
-      url: '/posts',
-      name: 'Posts'
-    },
-    {
-      url: '/musings',
-      name: 'Musings'
+      name: 'Blog'
     },
     {
       url: '/about',
       name: 'About'
-    },
-    {
-      url: '/projects',
-      name: 'Projects'
-    },
-    {
-      url: 'https://github.com/cinnes',
-      name: 'GitHub'
     }
   ]
 }

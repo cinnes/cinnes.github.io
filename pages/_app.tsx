@@ -1,13 +1,6 @@
 import type { AppProps } from 'next/app'
-import Link from 'next/link'
 import { Layout } from 'nextra-theme-blog'
 import 'nextra-theme-blog/style.css'
-
-const navigation = [
-  { url: '/', name: 'Blog' },
-  { url: '/about', name: 'About' },
-  { url: 'https://github.com/cinnes', name: 'GitHub' },
-]
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -132,41 +125,6 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         }
 
-        /* Clean Navigation */
-        body .custom-nav,
-        html body .custom-nav,
-        .custom-nav {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: var(--spacing-2xl) !important;
-          padding: var(--spacing-xl) 0 !important;
-          border-bottom: 1px solid var(--border-color) !important;
-          margin-bottom: var(--spacing-3xl) !important;
-          background-color: var(--bg-primary) !important;
-          backdrop-filter: blur(12px) !important;
-        }
-
-        body .custom-nav a,
-        html body .custom-nav a,
-        .custom-nav a {
-          text-decoration: none !important;
-          color: var(--text-secondary) !important;
-          font-weight: 500 !important;
-          font-size: 0.875rem !important;
-          padding: var(--spacing-sm) var(--spacing-md) !important;
-          border-radius: var(--radius) !important;
-          transition: all 0.15s ease !important;
-          letter-spacing: -0.025em !important;
-        }
-
-        body .custom-nav a:hover,
-        html body .custom-nav a:hover,
-        .custom-nav a:hover {
-          background-color: var(--bg-accent) !important;
-          color: var(--text-primary) !important;
-          transform: translateY(-1px) !important;
-        }
 
         /* Content Styling */
         h1, h2, h3, h4, h5, h6 {
@@ -291,24 +249,6 @@ export default function App({ Component, pageProps }: AppProps) {
         }
       `}</style>
       <Layout>
-        <nav className="custom-nav">
-          {navigation.map(item =>
-            item.url.startsWith('http') ? (
-              <a
-                key={item.name}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {item.name}
-              </a>
-            ) : (
-              <Link key={item.name} href={item.url}>
-                {item.name}
-              </Link>
-            )
-          )}
-        </nav>
         <Component {...pageProps} />
       </Layout>
     </>
