@@ -48,17 +48,24 @@ body {
 }
 
 /* Container & Layout */
+body .nx-container,
+html body .nx-container,
 .nx-container {
   max-width: var(--max-width) !important;
-  margin: 0 auto;
+  margin: 0 auto !important;
+  width: 100% !important;
 }
 
+body .nx-content,
+html body .nx-content,
 .nx-content {
   max-width: var(--content-width) !important;
-  margin: 0 auto;
+  margin: 0 auto !important;
 }
 
 @media (min-width: 768px) {
+  body .nx-container,
+  html body .nx-container,
   .nx-container {
     padding-left: var(--spacing-2xl) !important;
     padding-right: var(--spacing-2xl) !important;
@@ -66,6 +73,8 @@ body {
 }
 
 @media (min-width: 1024px) {
+  body .nx-container,
+  html body .nx-container,
   .nx-container {
     padding-left: var(--spacing-3xl) !important;
     padding-right: var(--spacing-3xl) !important;
@@ -73,33 +82,39 @@ body {
 }
 
 /* Clean Navigation */
+body .custom-nav,
+html body .custom-nav,
 .custom-nav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2xl);
-  padding: var(--spacing-xl) 0;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: var(--spacing-3xl);
-  background-color: var(--bg-primary);
-  backdrop-filter: blur(12px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--spacing-2xl) !important;
+  padding: var(--spacing-xl) 0 !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  margin-bottom: var(--spacing-3xl) !important;
+  background-color: var(--bg-primary) !important;
+  backdrop-filter: blur(12px) !important;
 }
 
+body .custom-nav a,
+html body .custom-nav a,
 .custom-nav a {
   text-decoration: none !important;
   color: var(--text-secondary) !important;
-  font-weight: 500;
-  font-size: 0.875rem;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius);
-  transition: all 0.15s ease;
-  letter-spacing: -0.025em;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  border-radius: var(--radius) !important;
+  transition: all 0.15s ease !important;
+  letter-spacing: -0.025em !important;
 }
 
+body .custom-nav a:hover,
+html body .custom-nav a:hover,
 .custom-nav a:hover {
   background-color: var(--bg-accent) !important;
   color: var(--text-primary) !important;
-  transform: translateY(-1px);
+  transform: translateY(-1px) !important;
 }
 
 /* Content Styling */
