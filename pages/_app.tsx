@@ -15,8 +15,8 @@ export default function App({ Component, pageProps }: AppProps) {
       <style jsx global>{`
         /* SWR-inspired Design System */
         :root {
-          --max-width: 1024px;
-          --content-width: 768px;
+          --max-width: 900px;
+          --content-width: 700px;
           --container-padding: 2rem;
           --spacing-xs: 0.25rem;
           --spacing-sm: 0.5rem;
@@ -57,7 +57,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
-          background-color: #ff0000 !important;
+          background-color: var(--bg-primary) !important;
           color: var(--text-primary) !important;
           line-height: 1.6;
           -webkit-font-smoothing: antialiased;
@@ -87,12 +87,11 @@ export default function App({ Component, pageProps }: AppProps) {
         .content,
         .page,
         .wrapper {
-          max-width: 1024px !important;
+          max-width: 900px !important;
           width: 100% !important;
           margin: 0 auto !important;
           padding-left: var(--container-padding) !important;
           padding-right: var(--container-padding) !important;
-          background-color: #00ff00 !important;
         }
 
         article,
@@ -100,10 +99,9 @@ export default function App({ Component, pageProps }: AppProps) {
         .content-wrapper,
         .post,
         .blog-post {
-          max-width: 768px !important;
+          max-width: 700px !important;
           margin: 0 auto !important;
           width: 100% !important;
-          background-color: #0000ff !important;
         }
 
         /* Progressive enhancement for larger screens */
