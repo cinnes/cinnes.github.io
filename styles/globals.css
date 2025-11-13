@@ -11,7 +11,7 @@ main {
 
 /* Target the specific content wrapper used by nextra-theme-blog */
 .nx-mx-auto {
-  max-width: 90%;
+  max-width: 95%;
 }
 
 /* Adjust content padding for wider screens */
@@ -19,7 +19,7 @@ main {
   article,
   .nextra-container,
   main {
-    width: 95%;
+    width: 98%;
     margin: 0 auto;
   }
 }
