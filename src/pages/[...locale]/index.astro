@@ -1,5 +1,5 @@
 ---
-import { render, getCollection } from "astro:content";
+import { getCollection } from "astro:content";
 import config, { monolocale } from "$config";
 import Base from "$layouts/Base.astro";
 import Note from "$components/note/Note.svelte";
@@ -14,24 +14,6 @@ export async function getStaticPaths() {
 const { locale = config.i18n.defaultLocale } = Astro.params;
 
 const t = i18nit(locale);
-
-// Get preface content for summary text
-const prefaces = (
-	await getCollection("preface", preface => {
-		// Handle single locale setup
-		if (monolocale) return true;
-
-		// Extract language and ID from file path structure
-		const [language, id] = preface.id.split("/");
-		preface.id = id;
-
-		// Filter by current locale
-		return language === locale;
-	})
-).sort((a, b) => b.data.timestamp.getTime() - a.data.timestamp.getTime());
-
-const preface = prefaces[0];
-const { Content } = preface ? await render(preface) : ({} as any);
 
 // Get published notes for current locale
 const notes = await getCollection("note", note => {
@@ -62,16 +44,6 @@ const tags = Array.from(new Set(notes.flatMap(note => note.data.tags).filter(Boo
 
 <Base title={config.title} {locale}>
 	<main class="flex flex-col grow">
-		{
-			preface && (
-				<section class="mb-16 pb-12 border-b-2 border-secondary/20">
-					<article class="markdown text-lg leading-relaxed max-w-3xl mx-auto text-center italic">
-						<Content />
-					</article>
-				</section>
-			)
-		}
-
 		<Note client:load {locale} notes={list} {series} {tags}>
 			<Icon name="lucide:flag-triangle-right" slot="top" />
 			<Icon name="lucide:siren" title={t("sensitive.icon")} slot="sensitive" />

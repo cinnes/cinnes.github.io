@@ -2,7 +2,7 @@
 title: Currying - Transforming Functions for Better Composition
 timestamp: 2025-11-09 00:00:00+00:00
 description: Learn how currying transforms multi-argument functions into sequences of single-argument functions for improved flexibility and reusability.
-tags: [functional-programming, currying, partial-application]
+tags: [fp, currying, partial]
 toc: true
 ---
 

@@ -2,7 +2,7 @@
 title: Higher-Order Functions - Functions as First-Class Citizens
 timestamp: 2025-11-11 00:00:00+00:00
 description: Master higher-order functions to write more expressive and reusable code by treating functions as values.
-tags: [functional-programming, higher-order-functions, javascript]
+tags: [fp, hof, js]
 toc: true
 ---
 

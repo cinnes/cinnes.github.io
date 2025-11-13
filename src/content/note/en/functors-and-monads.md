@@ -2,7 +2,7 @@
 title: Functors and Monads - Containers for Safer Code
 timestamp: 2025-11-07 00:00:00+00:00
 description: Understand functors and monads to write safer code that handles nulls, errors, and async operations elegantly.
-tags: [functional-programming, functors, monads, maybe]
+tags: [fp, functors, monads, maybe]
 toc: true
 ---
 
