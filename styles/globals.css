@@ -4,22 +4,39 @@
 article,
 .nextra-container,
 .nx-container,
-main {
+main,
+.container,
+div[class*='container'] {
   max-width: 100% !important;
-  width: 100% !important;
 }
 
-/* Target the specific content wrapper used by nextra-theme-blog */
-.nx-mx-auto {
-  max-width: 95%;
+/* Target all possible content wrappers */
+.nx-mx-auto,
+.mx-auto,
+article > div,
+main > div {
+  max-width: 1800px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 /* Adjust content padding for wider screens */
+@media (min-width: 768px) {
+  article,
+  .nextra-container,
+  .nx-container,
+  main {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+}
+
 @media (min-width: 1024px) {
   article,
   .nextra-container,
+  .nx-container,
   main {
-    width: 98%;
-    margin: 0 auto;
+    padding-left: 4rem !important;
+    padding-right: 4rem !important;
   }
 }
