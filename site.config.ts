@@ -2,13 +2,13 @@ import siteConfig from "./src/utils/config";
 
 const config = siteConfig({
 	title: "cinnes",
-	prologue: "side effect shepherd",
+	prologue: "",
 	author: {
 		name: "cinnes",
 		email: "hello@cinnes.dev",
 		link: "https://cinnes.github.io"
 	},
-	description: "A blog about modern web development, JavaScript, React, and performance optimization.",
+	description: "A blog about functional programming concepts explained simply and professionally.",
 	copyright: {
 		type: "CC BY-NC-ND 4.0",
 		year: "2025"
