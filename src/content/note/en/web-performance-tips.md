@@ -1,0 +1,336 @@
+---
+title: Web Performance Optimization - Essential Tips for 2025
+timestamp: 2025-09-12 00:00:00+00:00
+description: Practical techniques to improve your website's performance and Core Web Vitals.
+tags: [performance, web, optimization, core-web-vitals]
+toc: true
+---
+
+# Web Performance Optimization - Essential Tips for 2025
+
+Web performance is crucial for user experience and SEO. In this guide, we'll explore practical techniques to make your websites faster and more efficient.
+
+## Why Performance Matters
+
+- **User Experience**: Faster sites lead to better user engagement
+- **SEO Rankings**: Google uses page speed as a ranking factor
+- **Conversion Rates**: Every 100ms delay can reduce conversions by 1%
+- **Core Web Vitals**: Google's metrics for measuring user experience
+
+## Core Web Vitals Overview
+
+Google's Core Web Vitals focus on three key metrics:
+
+1. **Largest Contentful Paint (LCP)**: Loading performance (should be < 2.5s)
+2. **First Input Delay (FID)**: Interactivity (should be < 100ms)
+3. **Cumulative Layout Shift (CLS)**: Visual stability (should be < 0.1)
+
+## Image Optimization
+
+### Modern Image Formats
+
+Use next-generation image formats for better compression:
+
+```html
+<picture>
+  <source srcset="image.avif" type="image/avif">
+  <source srcset="image.webp" type="image/webp">
+  <img src="image.jpg" alt="Description" loading="lazy">
+</picture>
+```
+
+### Responsive Images
+
+Serve appropriately sized images:
+
+```html
+<img
+  src="image-800w.jpg"
+  srcset="image-400w.jpg 400w,
+          image-800w.jpg 800w,
+          image-1200w.jpg 1200w"
+  sizes="(max-width: 768px) 100vw, 50vw"
+  alt="Description"
+  loading="lazy"
+>
+```
+
+### Image Lazy Loading
+
+```javascript
+// Intersection Observer for lazy loading
+const imageObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const img = entry.target;
+      img.src = img.dataset.src;
+      img.classList.remove('lazy');
+      imageObserver.unobserve(img);
+    }
+  });
+});
+
+document.querySelectorAll('img[data-src]').forEach(img => {
+  imageObserver.observe(img);
+});
+```
+
+## JavaScript Optimization
+
+### Code Splitting
+
+Split your JavaScript into smaller chunks:
+
+```javascript
+// Dynamic imports for code splitting
+const loadModule = async () => {
+  const { heavyFunction } = await import('./heavy-module.js');
+  return heavyFunction();
+};
+
+// Route-based splitting in React
+const LazyComponent = React.lazy(() => import('./LazyComponent'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LazyComponent />
+    </Suspense>
+  );
+}
+```
+
+### Tree Shaking
+
+Remove unused code with proper imports:
+
+```javascript
+// Bad - imports entire library
+import _ from 'lodash';
+
+// Good - imports only what you need
+import { debounce } from 'lodash';
+
+// Even better - use specific imports
+import debounce from 'lodash/debounce';
+```
+
+### Web Workers for Heavy Tasks
+
+```javascript
+// main.js
+const worker = new Worker('worker.js');
+
+worker.postMessage({ data: largeDataSet });
+
+worker.onmessage = function(e) {
+  console.log('Result:', e.data);
+};
+
+// worker.js
+self.onmessage = function(e) {
+  const result = processLargeData(e.data);
+  self.postMessage(result);
+};
+```
+
+## CSS Optimization
+
+### Critical CSS
+
+Inline critical CSS and load the rest asynchronously:
+
+```html
+<style>
+  /* Critical CSS inlined here */
+  .header { /* ... */ }
+  .hero { /* ... */ }
+</style>
+
+<link rel="preload" href="non-critical.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="non-critical.css"></noscript>
+```
+
+### CSS Containment
+
+Use CSS containment to limit reflows:
+
+```css
+.article {
+  contain: layout style paint;
+}
+
+.sidebar {
+  contain: layout;
+}
+```
+
+## Loading Strategies
+
+### Resource Hints
+
+```html
+<!-- Preload critical resources -->
+<link rel="preload" href="critical-font.woff2" as="font" type="font/woff2" crossorigin>
+
+<!-- Prefetch likely next pages -->
+<link rel="prefetch" href="/next-page">
+
+<!-- Preconnect to external domains -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+```
+
+### Service Workers for Caching
+
+```javascript
+// service-worker.js
+const CACHE_NAME = 'app-v1';
+const urlsToCache = [
+  '/',
+  '/styles/main.css',
+  '/scripts/main.js'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        return response || fetch(event.request);
+      })
+  );
+});
+```
+
+## Performance Monitoring
+
+### Measuring Core Web Vitals
+
+```javascript
+// Measure LCP
+new PerformanceObserver((entryList) => {
+  for (const entry of entryList.getEntries()) {
+    console.log('LCP:', entry.startTime);
+  }
+}).observe({entryTypes: ['largest-contentful-paint']});
+
+// Measure FID
+new PerformanceObserver((entryList) => {
+  for (const entry of entryList.getEntries()) {
+    console.log('FID:', entry.processingStart - entry.startTime);
+  }
+}).observe({entryTypes: ['first-input']});
+
+// Measure CLS
+let clsValue = 0;
+new PerformanceObserver((entryList) => {
+  for (const entry of entryList.getEntries()) {
+    if (!entry.hadRecentInput) {
+      clsValue += entry.value;
+    }
+  }
+  console.log('CLS:', clsValue);
+}).observe({entryTypes: ['layout-shift']});
+```
+
+### Performance Budget
+
+Set and monitor performance budgets:
+
+```javascript
+// webpack.config.js
+module.exports = {
+  performance: {
+    maxAssetSize: 250000,
+    maxEntrypointSize: 250000,
+    hints: 'warning'
+  }
+};
+```
+
+## Framework-Specific Optimizations
+
+### React Performance
+
+```jsx
+// Memoization
+const ExpensiveComponent = React.memo(({ data }) => {
+  return <div>{expensiveOperation(data)}</div>;
+});
+
+// useMemo for expensive calculations
+const MemoizedComponent = ({ items }) => {
+  const expensiveValue = useMemo(() => {
+    return items.reduce((acc, item) => acc + item.value, 0);
+  }, [items]);
+
+  return <div>{expensiveValue}</div>;
+};
+
+// useCallback for stable references
+const Parent = ({ items }) => {
+  const handleClick = useCallback((id) => {
+    // Handle click
+  }, []);
+
+  return (
+    <div>
+      {items.map(item => (
+        <Child key={item.id} onClick={handleClick} />
+      ))}
+    </div>
+  );
+};
+```
+
+### Next.js Optimizations
+
+```jsx
+// Image optimization
+import Image from 'next/image';
+
+<Image
+  src="/hero.jpg"
+  alt="Hero image"
+  width={800}
+  height={600}
+  priority
+/>
+
+// Dynamic imports
+const DynamicComponent = dynamic(() => import('../components/Heavy'), {
+  loading: () => <p>Loading...</p>,
+});
+```
+
+## Performance Testing Tools
+
+1. **Lighthouse**: Built into Chrome DevTools
+2. **WebPageTest**: Detailed performance analysis
+3. **Core Web Vitals Chrome Extension**: Real-time metrics
+4. **Performance Tab in DevTools**: Runtime performance analysis
+
+## Quick Wins Checklist
+
+- [ ] Enable gzip/brotli compression
+- [ ] Optimize images (format, size, lazy loading)
+- [ ] Minify CSS and JavaScript
+- [ ] Use a CDN for static assets
+- [ ] Implement critical CSS
+- [ ] Add resource hints (preload, prefetch, preconnect)
+- [ ] Enable browser caching
+- [ ] Remove unused CSS and JavaScript
+- [ ] Optimize web fonts
+- [ ] Use service workers for caching
+
+## Conclusion
+
+Performance optimization is an ongoing process. Start with the biggest impact items (images, code splitting, caching) and gradually implement more advanced techniques. Always measure before and after changes to ensure improvements.
+
+Remember: the goal is not just fast metrics, but a great user experience!

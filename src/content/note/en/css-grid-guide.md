@@ -1,0 +1,269 @@
+---
+title: Mastering CSS Grid - A Complete Guide
+timestamp: 2025-09-13 00:00:00+00:00
+description: Learn CSS Grid from basics to advanced techniques with practical examples.
+tags: [css, grid, layout, frontend]
+toc: true
+---
+
+# Mastering CSS Grid - A Complete Guide
+
+CSS Grid is one of the most powerful layout systems available in CSS. It allows you to create complex, responsive layouts with ease. Let's dive into everything you need to know about CSS Grid.
+
+## What is CSS Grid?
+
+CSS Grid is a two-dimensional layout system that allows you to place items in rows and columns. Unlike Flexbox, which is primarily one-dimensional, Grid excels at creating complex layouts.
+
+## Basic Grid Setup
+
+To create a grid container, use `display: grid`:
+
+```css
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 100px 200px;
+  gap: 20px;
+}
+```
+
+```html
+<div class="container">
+  <div class="item">1</div>
+  <div class="item">2</div>
+  <div class="item">3</div>
+  <div class="item">4</div>
+  <div class="item">5</div>
+  <div class="item">6</div>
+</div>
+```
+
+## Grid Template Areas
+
+One of the most intuitive ways to create layouts is using named grid areas:
+
+```css
+.layout {
+  display: grid;
+  grid-template-areas:
+    "header header header"
+    "sidebar main main"
+    "footer footer footer";
+  grid-template-columns: 200px 1fr 1fr;
+  grid-template-rows: 80px 1fr 60px;
+  gap: 20px;
+  height: 100vh;
+}
+
+.header { grid-area: header; }
+.sidebar { grid-area: sidebar; }
+.main { grid-area: main; }
+.footer { grid-area: footer; }
+```
+
+## Responsive Grid Layouts
+
+### Auto-Fit and Auto-Fill
+
+Create responsive grids that adapt to screen size:
+
+```css
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+```
+
+### Media Queries with Grid
+
+```css
+.adaptive-layout {
+  display: grid;
+  gap: 20px;
+}
+
+/* Mobile-first approach */
+@media (min-width: 768px) {
+  .adaptive-layout {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .adaptive-layout {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+```
+
+## Advanced Grid Techniques
+
+### Grid Item Placement
+
+Position items precisely using line numbers or names:
+
+```css
+.item-1 {
+  grid-column: 1 / 3;  /* Span from line 1 to 3 */
+  grid-row: 1 / 2;
+}
+
+.item-2 {
+  grid-column: span 2;  /* Span 2 columns */
+  grid-row: 2;
+}
+```
+
+### Overlapping Items
+
+Grid allows items to overlap, creating interesting designs:
+
+```css
+.overlap-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 100px);
+}
+
+.background {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+  opacity: 0.8;
+}
+
+.content {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  z-index: 1;
+}
+```
+
+## Practical Examples
+
+### Card Layout
+
+```css
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  padding: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.card-content {
+  padding: 20px;
+}
+```
+
+### Dashboard Layout
+
+```css
+.dashboard {
+  display: grid;
+  grid-template-areas:
+    "header header header"
+    "sidebar main main"
+    "sidebar main main";
+  grid-template-columns: 250px 1fr 1fr;
+  grid-template-rows: 60px 1fr 1fr;
+  gap: 20px;
+  height: 100vh;
+  padding: 20px;
+}
+
+.widget {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  overflow-y: auto;
+}
+
+.main {
+  grid-area: main;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 20px;
+}
+```
+
+## Grid vs Flexbox: When to Use What?
+
+- **Use Grid for**: 2D layouts, complex page layouts, when you need precise control over both rows and columns
+- **Use Flexbox for**: 1D layouts, component-level layouts, when you need to distribute space along a single axis
+
+## Browser Support and Fallbacks
+
+CSS Grid has excellent browser support, but for older browsers:
+
+```css
+.fallback-layout {
+  /* Fallback for older browsers */
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.fallback-layout > * {
+  flex: 1 1 300px;
+}
+
+/* Modern browsers */
+@supports (display: grid) {
+  .fallback-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .fallback-layout > * {
+    flex: none;
+  }
+}
+```
+
+## Conclusion
+
+CSS Grid is a powerful tool that makes creating complex layouts straightforward and maintainable. Start with simple grids and gradually incorporate advanced features as you become more comfortable with the syntax.
+
+Key takeaways:
+- Use `grid-template-areas` for intuitive layout design
+- Leverage `auto-fit` and `minmax()` for responsive designs
+- Combine Grid with Flexbox for optimal results
+- Always consider fallbacks for older browsers
+
+Happy coding with CSS Grid!
