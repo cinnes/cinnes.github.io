@@ -110,43 +110,27 @@ onMount(() => {
 <style lang="less">
 	header {
 		a {
-			position: relative;
 			display: inline-block;
-
-			p,
-			span {
-				padding: 5px 10px;
-				text-align: center;
-			}
-
-			span {
-				position: absolute;
-				top: 0px;
-				width: 100%;
-				height: 100%;
-				border-bottom: 2px solid transparent;
-
-				transition: border-color 0.15s ease;
-			}
-
-			p {
-				color: var(--background-color);
-				background-color: var(--primary-color);
-
-				clip-path: inset(0 100% 0 0);
-				transition: clip-path 0.15s ease;
-			}
+			padding: 5px 10px;
+			color: var(--primary-color);
+			text-align: center;
+			transition: color 0.15s ease;
 
 			&.location {
-				span {
-					border-color: var(--secondary-color);
-				}
+				font-weight: bold;
+				border-bottom: 2px solid var(--secondary-color);
 			}
 
 			&:hover {
-				p {
-					clip-path: inset(0 0 0 0);
-				}
+				color: var(--secondary-color);
+			}
+
+			span {
+				display: none;
+			}
+
+			p {
+				display: inline;
 			}
 		}
 	}
@@ -180,33 +164,21 @@ onMount(() => {
 				a {
 					display: flex;
 					gap: 0.5rem;
-
-					span,
-					p {
-						padding: 0px;
-					}
+					padding: 0.5rem 0;
 
 					span {
-						position: static;
-						width: auto;
-
-						display: inline-flex;
-						align-items: center;
-
-						border-bottom: none;
-						color: var(--primary-color);
+						display: none;
 					}
 
 					p {
-						white-space: nowrap;
-
-						clip-path: none;
+						display: inline;
 						color: var(--primary-color);
-						background-color: var(--background-color);
+						white-space: nowrap;
 					}
 
 					&.location {
 						font-weight: bold;
+						border-bottom: none;
 					}
 				}
 			}
