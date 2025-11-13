@@ -1,4 +1,4 @@
-name: Deploy Preview to Surge
+name: Deploy Preview
 
 on:
   pull_request:
@@ -27,8 +27,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to Surge
-        id: surge
+      - name: Deploy Preview
+        id: preview
         run: |
           npm install -g surge
           PREVIEW_URL="cinnes-pr-${{ github.event.pull_request.number }}.surge.sh"
@@ -42,10 +42,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const previewUrl = "${{ steps.surge.outputs.preview_url }}";
+            const previewUrl = "${{ steps.preview.outputs.preview_url }}";
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🚀 Preview Deployment\n\nYour PR has been deployed to Surge!\n\n👉 [View Live Preview](${previewUrl})`
+              body: `Preview deployment complete\n\n[View Live Preview](${previewUrl})`
             });
