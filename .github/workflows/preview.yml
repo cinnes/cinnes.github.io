@@ -43,6 +43,29 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const previewUrl = "${{ steps.preview.outputs.preview_url }}";
+
+            // Get all comments on the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            // Find and delete previous preview comments from this bot
+            for (const comment of comments) {
+              if (
+                comment.user.type === 'Bot' &&
+                comment.body.includes('Preview deployment complete')
+              ) {
+                await github.rest.issues.deleteComment({
+                  comment_id: comment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+              }
+            }
+
+            // Create new preview comment
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
