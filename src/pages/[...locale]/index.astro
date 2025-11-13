@@ -64,8 +64,8 @@ const tags = Array.from(new Set(notes.flatMap(note => note.data.tags).filter(Boo
 	<main class="flex flex-col grow">
 		{
 			preface && (
-				<section class="mb-8">
-					<article class="markdown prose prose-sm max-w-none">
+				<section class="mb-16 pb-12 border-b-2 border-secondary/20">
+					<article class="markdown text-lg leading-relaxed max-w-3xl mx-auto text-center">
 						<Content />
 					</article>
 				</section>
