@@ -6,7 +6,6 @@ tags: [fp, functors, monads, haskell]
 toc: true
 ---
 
-# Functors and Monads - Containers for Safer Code
 
 Functors and monads are fundamental type classes in Haskell that provide a consistent interface for working with values in computational contexts. They enable elegant handling of null values, errors, and effectful computations.
 

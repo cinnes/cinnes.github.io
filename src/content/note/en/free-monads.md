@@ -6,7 +6,6 @@ tags: [fp, monads, free, haskell]
 toc: true
 ---
 
-# Free Monads - Separating Description from Interpretation
 
 Free monads let you build programs as pure data structures, completely separating *what* your program does from *how* it does it. This enables multiple interpreters, optimizations, and testing without changing business logic.
 

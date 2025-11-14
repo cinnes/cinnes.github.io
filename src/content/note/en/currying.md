@@ -6,7 +6,6 @@ tags: [fp, currying, partial, haskell]
 toc: true
 ---
 
-# Currying - Transforming Functions for Better Composition
 
 Currying is the technique of converting a function that takes multiple arguments into a sequence of functions that each take a single argument. Named after mathematician Haskell Curry, it's a powerful tool for creating flexible, reusable code.
 

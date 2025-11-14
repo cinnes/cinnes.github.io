@@ -6,7 +6,6 @@ tags: [fp, optics, lenses, haskell]
 toc: true
 ---
 
-# Optics - Composable Getters and Setters
 
 Optics provide a composable way to focus on parts of immutable data structures. Haskell's `lens` library offers a powerful toolkit for reading, updating, and traversing nested data elegantly.
 

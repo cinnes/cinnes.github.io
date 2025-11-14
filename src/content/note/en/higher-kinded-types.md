@@ -6,7 +6,6 @@ tags: [fp, hkt, types, haskell]
 toc: true
 ---
 
-# Higher-Kinded Types - Abstracting Over Type Constructors
 
 Higher-kinded types (HKTs) allow you to abstract over type constructors—types that themselves take type parameters. In Haskell, HKTs are native and enable powerful generic programming through type classes.
 

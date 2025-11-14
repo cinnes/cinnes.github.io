@@ -6,7 +6,6 @@ tags: [fp, stm, concurrency, haskell]
 toc: true
 ---
 
-# Transactional Programming - Managing State Changes Safely
 
 Software Transactional Memory (STM) brings database-style ACID transactions to concurrent programming. Haskell's STM is built into the language, providing composable atomic state changes without locks.
 

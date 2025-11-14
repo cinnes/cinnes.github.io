@@ -6,7 +6,6 @@ tags: [fp, effects, mtl, haskell]
 toc: true
 ---
 
-# Effect Systems - Tracking and Controlling Side Effects
 
 Effect systems make side effects explicit in type signatures, allowing you to track, compose, and handle effects separately from business logic. Haskell's MTL (Monad Transformer Library) provides this through type classes.
 
