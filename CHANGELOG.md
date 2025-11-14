@@ -1,5 +1,83 @@
 # Changelog
 
+## [0.24.0](https://github.com/cinnes/cinnes.github.io/compare/v0.23.0...v0.24.0) (2025-11-14)
+
+
+### Features
+
+* add Docker containers technical blog post ([c0fc67a](https://github.com/cinnes/cinnes.github.io/commit/c0fc67a0b15e2353611a5ab3bc76e560cb9dd057))
+* add enhanced navigation with wider layout and new pages ([75ab5c4](https://github.com/cinnes/cinnes.github.io/commit/75ab5c4f51e87317ea515aabf6d396632f3a09bf))
+* add example jotting posts ([226480a](https://github.com/cinnes/cinnes.github.io/commit/226480a275b44702132ed63bca1ddffdaab85132))
+* add PR preview deployment workflow with Surge ([eec0f48](https://github.com/cinnes/cinnes.github.io/commit/eec0f48217cb728d7ae7cd2c5869fd1280d87bd6))
+* add professional navigation and complete blog structure ([3b17071](https://github.com/cinnes/cinnes.github.io/commit/3b170712a9ebb6b80bc2f9d9545872b8b5103e5f))
+* convert preview workflow to use GitHub Deployments API ([9f3572b](https://github.com/cinnes/cinnes.github.io/commit/9f3572b3ee742b7b4d0eea14df0f07ccfc34c4e1))
+* enhance blog with rich content and better formatting ([2f7d1cb](https://github.com/cinnes/cinnes.github.io/commit/2f7d1cb093babfcfc09a8594f2c430d0de50a4ed))
+* enhance layout with wider SWR-inspired design ([0a29f49](https://github.com/cinnes/cinnes.github.io/commit/0a29f493fdebd64a25b5bba4173145400895546a))
+* finalize SWR-style constrained layout with clean styling ([802b9ab](https://github.com/cinnes/cinnes.github.io/commit/802b9abd02a105bffc78095252a525c6f6eec7a3))
+* flesh out about page with FP-focused content ([6091c0c](https://github.com/cinnes/cinnes.github.io/commit/6091c0c399365049e748bdcf2772a3093bf7dd38))
+* implement comprehensive blog system with TDD approach ([829f409](https://github.com/cinnes/cinnes.github.io/commit/829f40997cb8c09f1d9bdb53dc519565d759e9c9))
+* implement comprehensive SWR-style navigation design ([83d0100](https://github.com/cinnes/cinnes.github.io/commit/83d0100e71fb0fda2606ed971a7e726b2c351db0))
+* implement custom navigation tabs with responsive design ([61dcde4](https://github.com/cinnes/cinnes.github.io/commit/61dcde425c2fc4f4ea5fca5c4a20c7af2cf99d1c))
+* implement proper Nextra blog theme components ([3aa1978](https://github.com/cinnes/cinnes.github.io/commit/3aa1978503f3b6e7927b99f31f0c5d93effac499))
+* implement proper SWR-style constrained width layout ([56d076f](https://github.com/cinnes/cinnes.github.io/commit/56d076f1864227df3b25a75781d347262e336c65))
+* implement SWR-inspired design system with enhanced UX ([bf252a0](https://github.com/cinnes/cinnes.github.io/commit/bf252a011019266ea0c79515e99a26a1c54ff7fb))
+* implement SWR-style Nextra navigation system ([2222daa](https://github.com/cinnes/cinnes.github.io/commit/2222daaaef8214d4dc57654b58d429ba0f70f48c))
+* implement truly wide SWR-style layout with full width utilization ([922695f](https://github.com/cinnes/cinnes.github.io/commit/922695f697ae1568d6502d8f5a763783ae6ef01d))
+* integrate Nextra blog theme Layout component ([2bf2a7a](https://github.com/cinnes/cinnes.github.io/commit/2bf2a7a212abd2ce4eb65b9b54f39e49d0c07856))
+* migrate from Next.js/Nextra to Astro with ThoughtLite theme ([ce6607a](https://github.com/cinnes/cinnes.github.io/commit/ce6607a43014bb55337ab700fde6ef8d7ddf4843))
+* remove previous preview comments before posting new one ([5058480](https://github.com/cinnes/cinnes.github.io/commit/5058480bf7513e2131a2d13e8aecab8cdf37f068))
+* replace content with functional programming focus ([9852795](https://github.com/cinnes/cinnes.github.io/commit/985279573b483fa692fde5d653525be62b0e2bad))
+* restructure to use App Router with Nextra blog theme ([dbb3494](https://github.com/cinnes/cinnes.github.io/commit/dbb3494495ba3f40c59c2608cfe40f5349ca04f4))
+* setup Nextra blog with comprehensive dev toolchain ([5eccc27](https://github.com/cinnes/cinnes.github.io/commit/5eccc2700ba78729e926164be92afaee57fad030))
+* significantly expand about page content ([1b9a20a](https://github.com/cinnes/cinnes.github.io/commit/1b9a20abf382f644945a958529276637c299a356))
+* simplify home page and navigation to text-only ([b161438](https://github.com/cinnes/cinnes.github.io/commit/b1614384e3d73f5d2d478a7466e9492ccd3f5520))
+* update blog branding to cinnes with side effect shepherd tagline ([24a6004](https://github.com/cinnes/cinnes.github.io/commit/24a6004eab32a1ae1d869501c28c83df3cfd2295))
+* widen main content area for better use of screen space ([c0141bb](https://github.com/cinnes/cinnes.github.io/commit/c0141bbfbaf4db55af4d1f349d28f88baaebe68c))
+
+
+### Bug Fixes
+
+* add redirect from /note to home page ([2b611fa](https://github.com/cinnes/cinnes.github.io/commit/2b611fa2d7e0f6e8b852aba14b54d550502b9297))
+* add type guard for chronicle events ([0472335](https://github.com/cinnes/cinnes.github.io/commit/0472335aab443f9788d27ed19426810a0a2bc318))
+* adjust layout to match SWR's actual constrained width ([6691bb4](https://github.com/cinnes/cinnes.github.io/commit/6691bb495092ead746872c09d3dd4bd28045813c))
+* **build:** resolve Next.js 15 build issues for GitHub Pages ([15012ce](https://github.com/cinnes/cinnes.github.io/commit/15012ce87f7b311a0c1f0e90fd4e7097c7b8256a))
+* **ci:** update GitHub Pages deployment to use newer workflow ([c22f432](https://github.com/cinnes/cinnes.github.io/commit/c22f43282f5c02287fcd43aff53c3049195bf33a))
+* configure Nextra blog theme with Pages Router ([12970af](https://github.com/cinnes/cinnes.github.io/commit/12970af1c9929bbc3ffbc171dc188e8fee90247b))
+* correct information collection glob pattern ([a31c795](https://github.com/cinnes/cinnes.github.io/commit/a31c795cd618ee56724509bac2e41f7c85382a99))
+* correct policy getEntry path for monolocale ([4aa1bf1](https://github.com/cinnes/cinnes.github.io/commit/4aa1bf1b8ad3508875ea90e770a6b754bc11990c))
+* implement proper Nextra blog theme layout and styling ([78f615a](https://github.com/cinnes/cinnes.github.io/commit/78f615a5f236be4abad12b7924b0fe24b7a12450))
+* import Nextra blog theme CSS in layout ([58f0bf9](https://github.com/cinnes/cinnes.github.io/commit/58f0bf98620dfbe5e7b00027227acfb15041f32b))
+* move about page files to correct location for monolocale ([a1dd6cc](https://github.com/cinnes/cinnes.github.io/commit/a1dd6ccc87f1211fb6a3add995ed9544dd836ecb))
+* recreate minimal app/layout.tsx for Nextra 4.x compatibility ([0eaed06](https://github.com/cinnes/cinnes.github.io/commit/0eaed06ad102e1dbaef7995cd4565a4ba6645630))
+* redirect home page to notes to avoid duplication ([2dd47c9](https://github.com/cinnes/cinnes.github.io/commit/2dd47c9cdc692b1503632b8b0360276fbb94f70b))
+* remove conflicting app/page.mdx to allow Nextra pages routing ([5f209f7](https://github.com/cinnes/cinnes.github.io/commit/5f209f7f51bc982a856a659c47b548b23609090a))
+* remove conflicting root index.html that overrides Nextra build ([6402618](https://github.com/cinnes/cinnes.github.io/commit/6402618a26859436e259394263db44fcb790982a))
+* remove custom navbar, use pure Nextra blog theme ([15cffed](https://github.com/cinnes/cinnes.github.io/commit/15cffed12ceceeb6889f3a1f263b3447b3873289))
+* remove home and note icon slots from Navigator ([5ccfb88](https://github.com/cinnes/cinnes.github.io/commit/5ccfb88e163ef9677402fe7657f0d612de006199))
+* remove incompatible search component from blog theme ([72d2322](https://github.com/cinnes/cinnes.github.io/commit/72d2322e5cd24f74fba8ce8c5cbc9ae2d30afc0f))
+* remove job-level environment to fix deployment URL display ([1a89efe](https://github.com/cinnes/cinnes.github.io/commit/1a89efeb1ae1191ad42cb4ed0a4eeb2d13bee5f9))
+* remove preinstall script and update pnpm version in CI ([d0ae337](https://github.com/cinnes/cinnes.github.io/commit/d0ae3371fdb94e42bab52d76a9dfca9cda67a7ce))
+* remove unused home and note props from Navigator ([30c668c](https://github.com/cinnes/cinnes.github.io/commit/30c668cea9dcc98b8fbfe58c0da01668498dc96d))
+* remove unused homeRoute and simplify active function ([23189f3](https://github.com/cinnes/cinnes.github.io/commit/23189f34a173f8c1db0a15f2ae45f86db6afbd8a))
+* remove unused parameter in theme config ([ccb1c6e](https://github.com/cinnes/cinnes.github.io/commit/ccb1c6ecf204ceba63c9b635d850d7dda012c25b))
+* resolve about page content loading and remove Home from nav ([6b747df](https://github.com/cinnes/cinnes.github.io/commit/6b747df89322b5444727a9d9219a18ed969c004f))
+* resolve navigation duplication and page title issues ([ce420bc](https://github.com/cinnes/cinnes.github.io/commit/ce420bce6c323e5a849ff073657f9fb8f9e683b5))
+* resolve Nextra blog navigation and styling issues ([f47dd5e](https://github.com/cinnes/cinnes.github.io/commit/f47dd5e0399a0f9917ec4443445ff7ff7d98b07e))
+* restore Nextra blog theme styling by re-adding Layout component ([48bef60](https://github.com/cinnes/cinnes.github.io/commit/48bef607becd710b4ff6fc64a0c0d01af7bb6323))
+* revert to Pages Router with proper Nextra structure ([46020ee](https://github.com/cinnes/cinnes.github.io/commit/46020eef84a8816f2406e4a534684d5b270331ec))
+* skip install scripts in CI to prevent preinstall hook failures ([00e0926](https://github.com/cinnes/cinnes.github.io/commit/00e092685c0d447257037635890563b724d7f035))
+* strengthen CSS specificity to override Nextra theme styles ([49dd280](https://github.com/cinnes/cinnes.github.io/commit/49dd280815bd01300510d33dee5cf6e3c43b71f7))
+* switch to pure Pages Router with clean Nextra theming ([c989288](https://github.com/cinnes/cinnes.github.io/commit/c989288cad9d5ac429c04639cca423411fb57180))
+* update homepage title from 'Page' to 'cinnes' ([c90da20](https://github.com/cinnes/cinnes.github.io/commit/c90da20c742cd9fcbe31d06c3b926e16bc42fa0c))
+* update RSS feed URLs to match new note paths ([2760477](https://github.com/cinnes/cinnes.github.io/commit/27604779365877648f83019c0d518e3b05e06126))
+* update test script to pass with no tests ([94aba13](https://github.com/cinnes/cinnes.github.io/commit/94aba13ca072d403a7cb94d2db0633289f079437))
+
+
+### Documentation
+
+* add comprehensive README with setup and usage instructions ([9cad21f](https://github.com/cinnes/cinnes.github.io/commit/9cad21f6843936f46ca2071bc98119b2210492da))
+* simplify README for personal blog ([bacc21c](https://github.com/cinnes/cinnes.github.io/commit/bacc21c8d13726db162e6c06f1e32ffb595cea2a))
+
 ## [0.23.0](https://github.com/tuyuritio/astro-theme-thought-lite/compare/v0.22.3...v0.23.0) (2025-11-12)
 
 
