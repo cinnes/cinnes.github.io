@@ -1,529 +1,474 @@
 ---
 title: Transactional Programming - Managing State Changes Safely
 timestamp: 2025-11-15 00:00:00+00:00
-description: Learn how to manage complex state changes atomically using Software Transactional Memory and functional patterns for consistent, composable updates.
-tags: [fp, stm, concurrency, advanced]
+description: Learn how to manage complex state changes atomically using Haskell's Software Transactional Memory for consistent, composable updates.
+tags: [fp, stm, concurrency, haskell]
 toc: true
 ---
 
 # Transactional Programming - Managing State Changes Safely
 
-Software Transactional Memory (STM) brings database-style transactions to programming. It allows multiple state changes to be composed atomically, consistently, and in isolation—fundamental for managing complex state in functional programs.
+Software Transactional Memory (STM) brings database-style ACID transactions to concurrent programming. Haskell's STM is built into the language, providing composable atomic state changes without locks.
 
-## The Problem with Shared Mutable State
+## The Problem with Locks
 
-```javascript
-// Naive account transfer
-class Account {
-  constructor(public balance: number) {}
-
-  withdraw(amount: number): void {
-    if (this.balance >= amount) {
-      this.balance -= amount;
-    } else {
-      throw new Error('Insufficient funds');
-    }
-  }
-
-  deposit(amount: number): void {
-    this.balance += amount;
-  }
-}
-
-// Race condition!
-function transfer(from: Account, to: Account, amount: number): void {
-  from.withdraw(amount);  // What if this succeeds but...
-  to.deposit(amount);     // ...this fails? Money disappears!
-}
+```haskell
+-- Naive account transfer with IORefs
+transfer :: IORef Int -> IORef Int -> Int -> IO ()
+transfer fromRef toRef amount = do
+  fromBalance <- readIORef fromRef
+  when (fromBalance >= amount) $ do
+    writeIORef fromRef (fromBalance - amount)
+    -- What if program crashes here?
+    toBalance <- readIORef toRef
+    writeIORef toRef (toBalance + amount)
+-- Not atomic! Race conditions! Partial failures!
 ```
 
 Problems:
-- **Not atomic** - partial failures leave inconsistent state
-- **Not composable** - can't safely combine transfers
-- **Race conditions** - concurrent access corrupts state
+- **Not atomic** - can see partial state
+- **Not composable** - combining operations is error-prone
+- **Deadlocks** - locks can create circular dependencies
 
-## Transactional State
+## STM - Atomic Transactions
 
-A transaction groups multiple state changes into an atomic unit:
+STM provides composable atomic operations:
 
-```typescript
-// Transactional variable
-class TVar<A> {
-  constructor(private value: A) {}
+```haskell
+import Control.Concurrent.STM
+import Control.Monad
 
-  // Only readable within transaction
-  read(): A {
-    return this.value;
-  }
+-- TVar: transactional variable
+-- STM: transactional monad
 
-  // Only writable within transaction
-  write(newValue: A): void {
-    this.value = newValue;
-  }
-}
+-- Atomic account transfer
+transfer :: TVar Int -> TVar Int -> Int -> STM ()
+transfer fromVar toVar amount = do
+  fromBalance <- readTVar fromVar
+  when (fromBalance >= amount) $ do
+    writeTVar fromVar (fromBalance - amount)
+    toBalance <- readTVar toVar
+    writeTVar toVar (toBalance + amount)
 
-// Transaction monad
-type STM<A> = {
-  run: (onSuccess: (a: A) => void, onRetry: () => void) => void;
-};
+-- Execute atomically
+atomically :: STM a -> IO a
 
-// Create a transaction
-function pure<A>(a: A): STM<A> {
-  return {
-    run: (onSuccess) => onSuccess(a)
-  };
-}
+-- Usage
+main :: IO ()
+main = do
+  alice <- newTVarIO 100
+  bob <- newTVarIO 50
 
-// Read a transactional variable
-function readTVar<A>(tvar: TVar<A>): STM<A> {
-  return {
-    run: (onSuccess) => onSuccess(tvar.read())
-  };
-}
+  -- Run atomically: all or nothing!
+  atomically $ transfer alice bob 30
 
-// Write a transactional variable
-function writeTVar<A>(tvar: TVar<A>, value: A): STM<void> {
-  return {
-    run: (onSuccess) => {
-      tvar.write(value);
-      onSuccess(undefined);
-    }
-  };
-}
-
-// Bind transactions together
-function bind<A, B>(ma: STM<A>, f: (a: A) => STM<B>): STM<B> {
-  return {
-    run: (onSuccess, onRetry) => {
-      ma.run(
-        a => f(a).run(onSuccess, onRetry),
-        onRetry
-      );
-    }
-  };
-}
+  aliceBalance <- readTVarIO alice
+  bobBalance <- readTVarIO bob
+  print (aliceBalance, bobBalance)
+  -- (70, 80)
 ```
 
-## Atomic Account Transfer
+## Composing Transactions
 
-```typescript
-class AccountSTM {
-  constructor(public balanceVar: TVar<number>) {}
+STM transactions compose like pure functions:
 
-  withdraw(amount: number): STM<void> {
-    return bind(readTVar(this.balanceVar), balance => {
-      if (balance >= amount) {
-        return writeTVar(this.balanceVar, balance - amount);
-      } else {
-        // Retry transaction
-        return {
-          run: (_, onRetry) => onRetry()
-        };
-      }
-    });
-  }
+```haskell
+-- Individual operations
+withdraw :: TVar Int -> Int -> STM ()
+withdraw account amount = do
+  balance <- readTVar account
+  if balance >= amount
+    then writeTVar account (balance - amount)
+    else retry  -- Block until balance sufficient
 
-  deposit(amount: number): STM<void> {
-    return bind(readTVar(this.balanceVar), balance =>
-      writeTVar(this.balanceVar, balance + amount)
-    );
-  }
-}
+deposit :: TVar Int -> Int -> STM ()
+deposit account amount = do
+  balance <- readTVar account
+  writeTVar account (balance + amount)
 
-// Atomic transfer - all or nothing!
-function transfer(
-  from: AccountSTM,
-  to: AccountSTM,
-  amount: number
-): STM<void> {
-  return bind(from.withdraw(amount), () =>
-    to.deposit(amount)
-  );
-}
+-- Compose into transfer
+transfer' :: TVar Int -> TVar Int -> Int -> STM ()
+transfer' from to amount = do
+  withdraw from amount
+  deposit to amount
 
-// Execute transaction
-function atomically<A>(stm: STM<A>): A {
-  let result: A | undefined;
-  let retryCount = 0;
-  const maxRetries = 100;
-
-  while (result === undefined && retryCount < maxRetries) {
-    try {
-      stm.run(
-        (a) => { result = a; },
-        () => { retryCount++; }
-      );
-    } catch (e) {
-      retryCount++;
-    }
-  }
-
-  if (result === undefined) {
-    throw new Error('Transaction failed after max retries');
-  }
-
-  return result;
-}
-
-// Usage
-const alice = new AccountSTM(new TVar(100));
-const bob = new AccountSTM(new TVar(50));
-
-atomically(transfer(alice, bob, 30));
-// Either both succeed or both fail - no partial state!
+-- Execute
+atomically $ transfer' alice bob 30
 ```
 
-## Composable Transactions
+## retry - Blocking Transactions
 
-```typescript
-// Helper: modify a TVar with a function
-function modifyTVar<A>(
-  tvar: TVar<A>,
-  f: (a: A) => A
-): STM<void> {
-  return bind(readTVar(tvar), value =>
-    writeTVar(tvar, f(value))
-  );
-}
+`retry` blocks until a transaction can succeed:
 
-// Increment counter
-function increment(counter: TVar<number>): STM<void> {
-  return modifyTVar(counter, n => n + 1);
-}
+```haskell
+-- Wait until balance is sufficient
+withdrawBlocking :: TVar Int -> Int -> STM ()
+withdrawBlocking account amount = do
+  balance <- readTVar account
+  if balance >= amount
+    then writeTVar account (balance - amount)
+    else retry  -- Automatically retries when account changes
 
-// Decrement counter
-function decrement(counter: TVar<number>): STM<void> {
-  return modifyTVar(counter, n => n - 1);
-}
-
-// Compose transactions
-function compose<A, B, C>(
-  f: (a: A) => STM<B>,
-  g: (b: B) => STM<C>
-): (a: A) => STM<C> {
-  return a => bind(f(a), g);
-}
-
-// Sequence multiple transactions
-function sequence<A>(stms: STM<A>[]): STM<A[]> {
-  if (stms.length === 0) {
-    return pure([]);
-  }
-
-  const [head, ...tail] = stms;
-
-  return bind(head, a =>
-    bind(sequence(tail), as =>
-      pure([a, ...as])
-    )
-  );
-}
-
-// Example: atomic multi-transfer
-function multiTransfer(
-  transfers: Array<[AccountSTM, AccountSTM, number]>
-): STM<void> {
-  const stms = transfers.map(([from, to, amount]) =>
-    transfer(from, to, amount)
-  );
-
-  return bind(sequence(stms), () => pure(undefined));
-}
+-- Will block if insufficient funds
+atomically $ withdrawBlocking alice 1000
+-- Blocks until alice has >= 1000
 ```
 
-## Retry and OrElse
+## orElse - Alternative Transactions
 
-```typescript
-// Retry transaction until condition is met
-function retry<A>(): STM<A> {
-  return {
-    run: (_, onRetry) => onRetry()
-  };
-}
+Try one transaction, fall back to another:
 
-// Try first transaction, fallback to second on retry
-function orElse<A>(first: STM<A>, second: STM<A>): STM<A> {
-  return {
-    run: (onSuccess, onRetry) => {
-      let firstRetried = false;
+```haskell
+-- orElse :: STM a -> STM a -> STM a
 
-      first.run(
-        onSuccess,
-        () => {
-          firstRetried = true;
-          second.run(onSuccess, onRetry);
-        }
-      );
-    }
-  };
-}
+-- Withdraw from either account
+withdrawEither :: TVar Int -> TVar Int -> Int -> STM ()
+withdrawEither acc1 acc2 amount =
+  withdraw acc1 amount `orElse` withdraw acc2 amount
 
-// Example: withdraw from either account
-function withdrawEither(
-  acc1: AccountSTM,
-  acc2: AccountSTM,
-  amount: number
-): STM<void> {
-  return orElse(
-    acc1.withdraw(amount),
-    acc2.withdraw(amount)
-  );
-}
-
-// Check and wait pattern
-function check(condition: boolean): STM<void> {
-  return condition ? pure(undefined) : retry();
-}
-
-// Wait until balance is sufficient
-function waitForFunds(
-  account: AccountSTM,
-  minAmount: number
-): STM<void> {
-  return bind(readTVar(account.balanceVar), balance =>
-    check(balance >= minAmount)
-  );
-}
+-- Try alice, fall back to bob
+atomically $ withdrawEither alice bob 30
 ```
 
-## Advanced: Transaction Log
+## check - Conditional Blocking
 
-```typescript
-// Track reads and writes for optimistic concurrency
-class TransactionLog {
-  private reads = new Map<TVar<any>, any>();
-  private writes = new Map<TVar<any>, any>();
+Block until a condition is met:
 
-  readVar<A>(tvar: TVar<A>): A {
-    // Check if we've written to it in this transaction
-    if (this.writes.has(tvar)) {
-      return this.writes.get(tvar);
-    }
+```haskell
+-- check :: Bool -> STM ()
+-- check False = retry
+-- check True = return ()
 
-    // Otherwise read and log
-    const value = tvar.read();
-    if (!this.reads.has(tvar)) {
-      this.reads.set(tvar, value);
-    }
-    return value;
-  }
+waitForBalance :: TVar Int -> Int -> STM ()
+waitForBalance account minAmount = do
+  balance <- readTVar account
+  check (balance >= minAmount)
 
-  writeVar<A>(tvar: TVar<A>, value: A): void {
-    this.writes.set(tvar, value);
-  }
-
-  validate(): boolean {
-    // Check all reads are still valid
-    for (const [tvar, oldValue] of this.reads) {
-      if (tvar.read() !== oldValue) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  commit(): void {
-    // Write all pending writes
-    for (const [tvar, value] of this.writes) {
-      tvar.write(value);
-    }
-  }
-
-  clear(): void {
-    this.reads.clear();
-    this.writes.clear();
-  }
-}
-
-// STM with transaction log
-function runSTM<A>(stm: STM<A>): A {
-  const maxRetries = 100;
-
-  for (let i = 0; i < maxRetries; i++) {
-    const log = new TransactionLog();
-    let result: A | undefined;
-    let shouldRetry = false;
-
-    stm.run(
-      (a) => { result = a; },
-      () => { shouldRetry = true; }
-    );
-
-    if (shouldRetry) {
-      log.clear();
-      continue;
-    }
-
-    // Optimistic check: did any reads change?
-    if (log.validate()) {
-      log.commit();
-      return result!;
-    }
-
-    // Conflict detected, retry
-    log.clear();
-  }
-
-  throw new Error('Transaction failed: too many conflicts');
-}
+-- Block until alice has at least 100
+atomically $ waitForBalance alice 100
 ```
 
-## Real-World: Task Queue
+## Practical Example: Bank
 
-```typescript
-// Concurrent task queue with STM
-class TaskQueue<T> {
-  private queueVar: TVar<T[]>;
-  private workersVar: TVar<number>;
+```haskell
+data Account = Account
+  { accountBalance :: TVar Int
+  , accountName :: String
+  } deriving (Eq)
 
-  constructor(maxWorkers: number) {
-    this.queueVar = new TVar([]);
-    this.workersVar = new TVar(maxWorkers);
-  }
+newAccount :: String -> Int -> IO Account
+newAccount name balance = do
+  balanceVar <- newTVarIO balance
+  return $ Account balanceVar name
 
-  // Add task to queue
-  enqueue(task: T): STM<void> {
-    return modifyTVar(this.queueVar, queue => [...queue, task]);
-  }
+-- Get balance (in STM)
+getBalance :: Account -> STM Int
+getBalance = readTVar . accountBalance
 
-  // Take task from queue (wait if empty or no workers)
-  dequeue(): STM<T> {
-    return bind(readTVar(this.queueVar), queue =>
-      bind(readTVar(this.workersVar), workers => {
-        if (queue.length === 0) {
-          return retry();  // Wait for tasks
-        }
+-- Transfer with validation
+safeTransfer :: Account -> Account -> Int -> STM ()
+safeTransfer from to amount = do
+  when (from == to) $
+    error "Cannot transfer to same account"
+  when (amount <= 0) $
+    error "Amount must be positive"
 
-        if (workers === 0) {
-          return retry();  // Wait for available worker
-        }
+  fromBalance <- getBalance from
+  when (fromBalance < amount) retry
 
-        const [task, ...rest] = queue;
+  withdraw (accountBalance from) amount
+  deposit (accountBalance to) amount
 
-        return bind(writeTVar(this.queueVar, rest), () =>
-          bind(writeTVar(this.workersVar, workers - 1), () =>
-            pure(task)
-          )
-        );
-      })
-    );
-  }
+-- Concurrent transfers - all atomic!
+main :: IO ()
+main = do
+  alice <- newAccount "Alice" 1000
+  bob <- newAccount "Bob" 500
+  charlie <- newAccount "Charlie" 200
 
-  // Release worker back to pool
-  releaseWorker(): STM<void> {
-    return modifyTVar(this.workersVar, n => n + 1);
-  }
+  -- Run concurrently
+  concurrently_
+    (atomically $ safeTransfer alice bob 100)
+    (atomically $ safeTransfer bob charlie 50)
 
-  // Batch enqueue
-  enqueueBatch(tasks: T[]): STM<void> {
-    return modifyTVar(this.queueVar, queue => [...queue, ...tasks]);
-  }
-}
+  balances <- atomically $ do
+    a <- getBalance alice
+    b <- getBalance bob
+    c <- getBalance charlie
+    return (a, b, c)
 
-// Process tasks with automatic worker management
-async function processTasks<T>(
-  queue: TaskQueue<T>,
-  process: (task: T) => Promise<void>
-): Promise<void> {
-  const task = atomically(queue.dequeue());
-
-  try {
-    await process(task);
-  } finally {
-    atomically(queue.releaseWorker());
-  }
-}
+  print balances
+  -- (900, 550, 250) - always consistent!
 ```
 
-## Snapshot Isolation
+## TQueue - Transactional Queue
 
-```typescript
-// Versioned value for snapshot isolation
-class VersionedValue<A> {
-  constructor(
-    private value: A,
-    private version: number = 0
-  ) {}
+STM provides composable concurrent data structures:
 
-  read(): [A, number] {
-    return [this.value, this.version];
+```haskell
+import Control.Concurrent.STM.TQueue
+
+-- Create a queue
+queue <- newTQueueIO :: IO (TQueue Int)
+
+-- Write to queue
+atomically $ writeTQueue queue 42
+
+-- Read from queue (blocks if empty)
+value <- atomically $ readTQueue queue
+
+-- Non-blocking read
+maybeValue <- atomically $ tryReadTQueue queue
+```
+
+### Producer-Consumer Pattern
+
+```haskell
+producer :: TQueue Int -> IO ()
+producer queue = forM_ [1..100] $ \i -> do
+  atomically $ writeTQueue queue i
+  threadDelay 10000
+
+consumer :: String -> TQueue Int -> IO ()
+consumer name queue = forever $ do
+  item <- atomically $ readTQueue queue
+  putStrLn $ name ++ " consumed: " ++ show item
+
+main :: IO ()
+main = do
+  queue <- newTQueueIO
+
+  -- Multiple producers and consumers
+  forkIO $ producer queue
+  forkIO $ consumer "Consumer 1" queue
+  forkIO $ consumer "Consumer 2" queue
+
+  threadDelay 10000000
+```
+
+## TVar - Shared State
+
+Complex shared state with multiple TVars:
+
+```haskell
+data Inventory = Inventory
+  { itemStock :: TVar (Map String Int)
+  , itemReserved :: TVar (Map String Int)
   }
 
-  write(newValue: A): void {
-    this.value = newValue;
-    this.version++;
+newInventory :: IO Inventory
+newInventory = Inventory
+  <$> newTVarIO Map.empty
+  <*> newTVarIO Map.empty
+
+-- Reserve items atomically
+reserveItem :: Inventory -> String -> Int -> STM Bool
+reserveItem inv item qty = do
+  stock <- readTVar (itemStock inv)
+  reserved <- readTVar (itemReserved inv)
+
+  let available = Map.findWithDefault 0 item stock
+  let currentReserved = Map.findWithDefault 0 item reserved
+
+  if available - currentReserved >= qty
+    then do
+      writeTVar (itemReserved inv) $
+        Map.insertWith (+) item qty reserved
+      return True
+    else return False
+
+-- Complete reservation
+completeReservation :: Inventory -> String -> Int -> STM ()
+completeReservation inv item qty = do
+  stock <- readTVar (itemStock inv)
+  reserved <- readTVar (itemReserved inv)
+
+  writeTVar (itemStock inv) $
+    Map.adjust (subtract qty) item stock
+  writeTVar (itemReserved inv) $
+    Map.adjust (subtract qty) item reserved
+
+-- Both operations are atomic!
+purchaseItem :: Inventory -> String -> Int -> IO Bool
+purchaseItem inv item qty = atomically $ do
+  success <- reserveItem inv item qty
+  when success $
+    completeReservation inv item qty
+  return success
+```
+
+## TMVar - Transactional MVar
+
+Blocking read/write variable:
+
+```haskell
+import Control.Concurrent.STM.TMVar
+
+-- Create empty TMVar
+tmvar <- newEmptyTMVarIO :: IO (TMVar Int)
+
+-- Put value (blocks if full)
+atomically $ putTMVar tmvar 42
+
+-- Take value (blocks if empty)
+value <- atomically $ takeTMVar tmvar
+
+-- Non-blocking operations
+atomically $ tryPutTMVar tmvar 100
+atomically $ tryTakeTMVar tmvar
+```
+
+## Exception Handling in STM
+
+STM transactions can throw and catch exceptions:
+
+```haskell
+import Control.Exception
+
+data InsufficientFunds = InsufficientFunds Int Int
+  deriving (Show, Exception)
+
+withdrawWithException :: TVar Int -> Int -> STM ()
+withdrawWithException account amount = do
+  balance <- readTVar account
+  if balance >= amount
+    then writeTVar account (balance - amount)
+    else throwSTM $ InsufficientFunds balance amount
+
+-- Handle in STM
+transferSafe :: TVar Int -> TVar Int -> Int -> STM (Either String ())
+transferSafe from to amount =
+  (Right <$> transfer from to amount) `catchSTM` \(e :: InsufficientFunds) ->
+    return $ Left $ "Transfer failed: " ++ show e
+
+-- Or handle in IO
+main :: IO ()
+main = do
+  alice <- newTVarIO 100
+  bob <- newTVarIO 50
+
+  result <- atomically $ transferSafe alice bob 200
+  case result of
+    Left err -> putStrLn err
+    Right () -> putStrLn "Transfer successful"
+```
+
+## Invariants with always
+
+Enforce invariants that are checked on every transaction:
+
+```haskell
+-- always :: STM a -> STM ()
+
+data Account = Account
+  { balance :: TVar Int
+  , overdraftLimit :: Int
   }
 
-  getVersion(): number {
-    return this.version;
+-- Enforce invariant: balance >= -overdraftLimit
+enforceOverdraft :: Account -> STM ()
+enforceOverdraft acc = always $ do
+  bal <- readTVar (balance acc)
+  check (bal >= negate (overdraftLimit acc))
+
+main :: IO ()
+main = do
+  balanceVar <- newTVarIO 100
+  let acc = Account balanceVar 50
+
+  atomically $ enforceOverdraft acc
+
+  -- This will fail if it violates invariant
+  atomically $ writeTVar balanceVar (-100)
+  -- Exception: invariant violated
+```
+
+## Performance Considerations
+
+STM has automatic optimistic concurrency:
+
+```haskell
+-- Good: short transactions
+shortTransaction :: TVar Int -> STM ()
+shortTransaction var = do
+  x <- readTVar var
+  writeTVar var (x + 1)
+
+-- Bad: long-running computation in transaction
+badTransaction :: TVar Int -> STM Int
+badTransaction var = do
+  x <- readTVar var
+  let result = expensiveComputation x  -- BAD!
+  writeTVar var result
+  return result
+
+-- Good: computation outside transaction
+goodTransaction :: TVar Int -> IO Int
+goodTransaction var = do
+  x <- atomically $ readTVar var
+  let result = expensiveComputation x  -- Outside STM
+  atomically $ writeTVar var result
+  return result
+```
+
+## Real-World: Job Queue
+
+```haskell
+data Job = Job
+  { jobId :: Int
+  , jobData :: String
+  } deriving (Show, Eq)
+
+data JobQueue = JobQueue
+  { pending :: TQueue Job
+  , inProgress :: TVar (Set Int)
+  , completed :: TVar (Set Int)
   }
-}
 
-// Transaction with snapshot isolation
-class IsolatedTransaction {
-  private snapshot = new Map<VersionedValue<any>, number>();
-  private writes = new Map<VersionedValue<any>, any>();
+newJobQueue :: IO JobQueue
+newJobQueue = JobQueue
+  <$> newTQueueIO
+  <*> newTVarIO Set.empty
+  <*> newTVarIO Set.empty
 
-  read<A>(vv: VersionedValue<A>): A {
-    // Use written value if exists
-    if (this.writes.has(vv)) {
-      return this.writes.get(vv);
-    }
+-- Submit job
+submitJob :: JobQueue -> Job -> STM ()
+submitJob queue job = writeTQueue (pending queue) job
 
-    // Read and record version
-    const [value, version] = vv.read();
-    if (!this.snapshot.has(vv)) {
-      this.snapshot.set(vv, version);
-    }
+-- Claim job (atomic!)
+claimJob :: JobQueue -> STM (Maybe Job)
+claimJob queue = do
+  maybeJob <- tryReadTQueue (pending queue)
+  case maybeJob of
+    Nothing -> return Nothing
+    Just job -> do
+      modifyTVar' (inProgress queue) (Set.insert (jobId job))
+      return (Just job)
 
-    return value;
-  }
+-- Complete job
+completeJob :: JobQueue -> Job -> STM ()
+completeJob queue job = do
+  modifyTVar' (inProgress queue) (Set.delete (jobId job))
+  modifyTVar' (completed queue) (Set.insert (jobId job))
 
-  write<A>(vv: VersionedValue<A>, value: A): void {
-    this.writes.set(vv, value);
-  }
-
-  commit(): boolean {
-    // Check for conflicts
-    for (const [vv, version] of this.snapshot) {
-      if (vv.getVersion() !== version) {
-        return false;  // Conflict!
-      }
-    }
-
-    // Commit writes
-    for (const [vv, value] of this.writes) {
-      vv.write(value);
-    }
-
-    return true;
-  }
-}
-
-// Example: concurrent counter with snapshot isolation
-const counter = new VersionedValue(0);
-
-function incrementIsolated(): boolean {
-  const txn = new IsolatedTransaction();
-  const current = txn.read(counter);
-  txn.write(counter, current + 1);
-  return txn.commit();
-}
-
-// Retry until commit succeeds
-function incrementWithRetry(): void {
-  while (!incrementIsolated()) {
-    // Conflict detected, retry
-  }
-}
+-- Worker
+worker :: String -> JobQueue -> IO ()
+worker name queue = forever $ do
+  maybeJob <- atomically $ claimJob queue
+  case maybeJob of
+    Nothing -> threadDelay 100000
+    Just job -> do
+      putStrLn $ name ++ " processing: " ++ show job
+      threadDelay 1000000  -- Simulate work
+      atomically $ completeJob queue job
 ```
 
 ## Key Takeaways
 
-1. **Atomicity** - transactions execute all-or-nothing
-2. **Composability** - combine transactions like pure functions
-3. **Retry semantics** - automatic retries on conflicts or conditions
-4. **OrElse** - fallback transactions for flexible control flow
-5. **Isolation** - snapshot isolation prevents interference
+1. **Atomic** - transactions execute all-or-nothing
+2. **Composable** - combine transactions like pure functions
+3. **retry** - block until conditions are met
+4. **orElse** - fallback transactions
+5. **No deadlocks** - optimistic concurrency, no locks
 
-STM brings principled state management to functional programming. It eliminates race conditions while maintaining composability—essential for building reliable concurrent systems.
+Haskell's STM provides principled, composable concurrency. It eliminates race conditions and deadlocks while maintaining the benefits of functional programming. All concurrent state changes are atomic and consistent.
