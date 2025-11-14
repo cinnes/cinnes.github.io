@@ -2,7 +2,7 @@
 title: Currying - Transforming Functions for Better Composition
 timestamp: 2025-11-09 00:00:00+00:00
 description: Learn how currying transforms multi-argument functions into sequences of single-argument functions for improved flexibility and reusability.
-tags: [fp, currying, partial]
+tags: [fp, currying, partial, haskell]
 toc: true
 ---
 
@@ -10,429 +10,410 @@ toc: true
 
 Currying is the technique of converting a function that takes multiple arguments into a sequence of functions that each take a single argument. Named after mathematician Haskell Curry, it's a powerful tool for creating flexible, reusable code.
 
+In Haskell, **all functions are curried by default**. What appears to be multi-argument functions are actually chains of single-argument functions.
+
 ## Understanding Currying
 
-### Before Currying
+### All Functions Are Curried
 
-```javascript
-// Regular function with multiple parameters
-function add(a, b, c) {
-  return a + b + c;
-}
+```haskell
+-- This looks like a two-argument function
+add :: Int -> Int -> Int
+add x y = x + y
 
-add(1, 2, 3);  // 6
+-- But it's actually:
+add :: Int -> (Int -> Int)
+add x = \y -> x + y
+
+-- These are equivalent:
+add 3 5      -- 8
+(add 3) 5    -- 8
+(\y -> 3 + y) 5  -- 8
 ```
 
-### After Currying
-
-```javascript
-// Curried version
-function add(a) {
-  return function(b) {
-    return function(c) {
-      return a + b + c;
-    };
-  };
-}
-
-add(1)(2)(3);  // 6
-
-// Or with arrow functions
-const add = a => b => c => a + b + c;
-```
-
-## Manual Currying
-
-```javascript
-// Two parameters
-const multiply = a => b => a * b;
-
-multiply(2)(3);  // 6
-
-const double = multiply(2);
-double(5);  // 10
-double(10); // 20
-
-// Three parameters
-const greet = greeting => name => punctuation =>
-  `${greeting}, ${name}${punctuation}`;
-
-greet('Hello')('World')('!');  // "Hello, World!"
-
-const sayHello = greet('Hello');
-const sayHelloToJohn = sayHello('John');
-sayHelloToJohn('!');  // "Hello, John!"
-```
-
-## Automatic Currying
-
-```javascript
-function curry(fn) {
-  return function curried(...args) {
-    if (args.length >= fn.length) {
-      return fn.apply(this, args);
-    }
-
-    return function(...nextArgs) {
-      return curried.apply(this, args.concat(nextArgs));
-    };
-  };
-}
-
-// Usage
-function add(a, b, c) {
-  return a + b + c;
-}
-
-const curriedAdd = curry(add);
-
-// All these work
-curriedAdd(1)(2)(3);      // 6
-curriedAdd(1, 2)(3);      // 6
-curriedAdd(1)(2, 3);      // 6
-curriedAdd(1, 2, 3);      // 6
-```
-
-## Currying vs Partial Application
+The type `Int -> Int -> Int` is right-associative, meaning `Int -> (Int -> Int)`:
+- Take an `Int`
+- Return a function that takes another `Int`
+- That function returns an `Int`
 
 ### Partial Application
 
-```javascript
-function partial(fn, ...fixedArgs) {
-  return function(...remainingArgs) {
-    return fn(...fixedArgs, ...remainingArgs);
-  };
-}
+Apply some arguments to get a specialized function:
 
-function greet(greeting, name) {
-  return `${greeting}, ${name}!`;
-}
+```haskell
+-- Full application
+add 3 5  -- 8
 
-// Fix first argument
-const sayHello = partial(greet, 'Hello');
-sayHello('John');  // "Hello, John!"
-sayHello('Jane');  // "Hello, Jane!"
-```
+-- Partial application
+add3 :: Int -> Int
+add3 = add 3
 
-### Currying
+add3 5   -- 8
+add3 10  -- 13
 
-```javascript
-const greet = greeting => name =>
-  `${greeting}, ${name}!`;
+-- More examples
+multiply :: Int -> Int -> Int
+multiply x y = x * y
 
-// Can partially apply at any level
-const sayHello = greet('Hello');
-const sayHi = greet('Hi');
+double :: Int -> Int
+double = multiply 2
 
-sayHello('John');  // "Hello, John!"
-sayHi('John');     // "Hi, John!"
+triple :: Int -> Int
+triple = multiply 3
+
+double 5  -- 10
+triple 5  -- 15
 ```
 
 ## Practical Applications
 
-### Reusable Validators
+### Configuration Functions
 
-```javascript
-const validateLength = min => max => value =>
-  value.length >= min && value.length <= max;
+```haskell
+-- Generic greeting builder
+greet :: String -> String -> String -> String
+greet greeting name punctuation =
+  greeting ++ ", " ++ name ++ punctuation
 
-const validateEmail = pattern => value =>
-  pattern.test(value);
+-- Specialized greetings
+hello :: String -> String
+hello = greet "Hello"
 
-// Create specific validators
-const isValidUsername = validateLength(3)(20);
-const isValidPassword = validateLength(8)(100);
-const isValidEmail = validateEmail(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+goodbye :: String -> String
+goodbye = greet "Goodbye"
 
-isValidUsername('john');           // true
-isValidPassword('short');          // false
-isValidEmail('john@example.com');  // true
+-- Even more specialized
+helloExcited :: String -> String
+helloExcited = greet "Hello" `ap` id `ap` const "!"
+-- Or simply:
+helloExcited name = greet "Hello" name "!"
+
+hello "Alice"    -- "Hello, Alice"
+goodbye "Bob"    -- "Goodbye, Bob"
 ```
 
-### Data Filtering
+### List Operations
 
-```javascript
-const filterBy = property => predicate => array =>
-  array.filter(item => predicate(item[property]));
+```haskell
+-- Filter with partial application
+filter :: (a -> Bool) -> [a] -> [a]
 
-const filterByAge = filterBy('age');
-const filterByName = filterBy('name');
+evens :: [Int] -> [Int]
+evens = filter even
 
-const olderThan = age => value => value > age;
-const startsWith = prefix => value => value.startsWith(prefix);
+positives :: [Int] -> [Int]
+positives = filter (> 0)
 
-const users = [
-  { name: 'John', age: 30 },
-  { name: 'Jane', age: 25 },
-  { name: 'Bob', age: 35 }
-];
+longWords :: [String] -> [String]
+longWords = filter (\w -> length w > 5)
 
-const adults = filterByAge(olderThan(18));
-const nameStartsWithJ = filterByName(startsWith('J'));
-
-adults(users);          // All users
-nameStartsWithJ(users); // [John, Jane]
+evens [1, 2, 3, 4, 5, 6]        -- [2, 4, 6]
+positives [-2, -1, 0, 1, 2]     -- [1, 2]
+longWords ["hi", "hello", "hey"]  -- ["hello"]
 ```
 
-### API Requests
+### Map with Partial Application
 
-```javascript
-const request = method => url => data =>
-  fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: data ? JSON.stringify(data) : undefined
-  });
+```haskell
+-- map :: (a -> b) -> [a] -> [b]
 
-// Create specific request functions
-const get = request('GET');
-const post = request('POST');
-const put = request('PUT');
-const del = request('DELETE');
+-- Specialized mappers
+doubleAll :: [Int] -> [Int]
+doubleAll = map (*2)
 
-// Create endpoint-specific functions
-const getUsers = get('/api/users');
-const createUser = post('/api/users');
-const updateUser = put('/api/users');
+uppercaseAll :: [String] -> [String]
+uppercaseAll = map (map toUpper)
 
-// Use them
-getUsers();
-createUser({ name: 'John' });
-updateUser({ id: 1, name: 'Jane' });
+squareAll :: [Int] -> [Int]
+squareAll = map (^2)
+
+doubleAll [1, 2, 3]           -- [2, 4, 6]
+uppercaseAll ["hi", "bye"]    -- ["HI", "BYE"]
+squareAll [1, 2, 3, 4]        -- [1, 4, 9, 16]
 ```
 
-### Event Handlers
+## Operators and Sections
 
-```javascript
-const on = eventType => element => handler =>
-  element.addEventListener(eventType, handler);
+Operators can be partially applied using sections:
 
-const onClick = on('click');
-const onInput = on('input');
-const onSubmit = on('submit');
+```haskell
+-- Left section
+(+3) :: Int -> Int
+(+3) 5    -- 8
 
-// Specific element handlers
-const button = document.querySelector('#btn');
-const input = document.querySelector('#input');
+(*2) :: Int -> Int
+(*2) 10   -- 20
 
-const handleButtonClick = onClick(button);
-const handleInputChange = onInput(input);
+-- Right section
+(3+) :: Int -> Int
+(3+) 5    -- 8
 
-handleButtonClick(() => console.log('Clicked!'));
-handleInputChange(e => console.log(e.target.value));
+(2*) :: Int -> Int
+(2*) 10   -- 20
+
+-- Comparison sections
+(> 5) :: Int -> Bool
+(> 5) 10   -- True
+
+(<= 3) :: Int -> Bool
+(<= 3) 2   -- True
+
+-- Division (order matters!)
+(/2) :: Double -> Double
+(/2) 10.0  -- 5.0 (divide by 2)
+
+(2/) :: Double -> Double
+(2/) 10.0  -- 0.2 (2 divided by...)
 ```
 
-## Currying with Multiple Strategies
+## Function Composition with Currying
 
-### Left-to-Right Currying
+Currying makes composition elegant:
 
-```javascript
-const divide = a => b => a / b;
+```haskell
+-- (.) :: (b -> c) -> (a -> b) -> a -> c
 
-const half = divide(10);  // divides 10 by...
-half(2);  // 5
+-- Process numbers
+processNumbers :: [Int] -> [Int]
+processNumbers = filter (> 0) . map (*2) . filter even
 
-const divideByTwo = a => divide(a)(2);
-divideByTwo(10);  // 5
+processNumbers [1, 2, 3, 4, 5, 6]
+-- [4, 8, 12]  (even: [2,4,6] -> double: [4,8,12] -> positive: [4,8,12])
+
+-- Process strings
+processText :: String -> String
+processText = filter isAlpha . map toUpper
+
+processText "Hello, World!"
+-- "HELLOWORLD"
 ```
 
-### Right-to-Left Currying
+## Flipping Arguments
 
-```javascript
-// Helper for right-currying
-const rcurry = fn =>
-  function curried(...args) {
-    if (args.length >= fn.length) {
-      return fn.apply(this, args.reverse());
-    }
-    return (...nextArgs) =>
-      curried.apply(this, nextArgs.concat(args));
-  };
+Sometimes you need to swap argument order:
 
-const divide = rcurry((a, b) => a / b);
-const divideByTwo = divide(2);  // divides by 2
-divideByTwo(10);  // 5
+```haskell
+-- flip :: (a -> b -> c) -> b -> a -> c
+flip f x y = f y x
+
+-- Subtract in reverse
+subtractFrom :: Int -> Int -> Int
+subtractFrom = flip (-)
+
+subtractFrom 10 3  -- 7  (10 - 3, not 3 - 10)
+
+-- Useful for partial application
+subtract5From :: Int -> Int
+subtract5From = subtractFrom 5
+
+subtract5From 10  -- 5  (10 - 5)
+
+-- With division
+divideInto :: Double -> Double -> Double
+divideInto = flip (/)
+
+divideInto 100 10  -- 10.0  (100 / 10)
 ```
 
-## Combining Currying with Composition
+## Building Domain-Specific Functions
 
-```javascript
-const map = fn => arr => arr.map(fn);
-const filter = predicate => arr => arr.filter(predicate);
-const reduce = (fn, init) => arr => arr.reduce(fn, init);
+```haskell
+-- HTTP request builder
+data Request = Request
+  { method :: String
+  , url :: String
+  , headers :: [(String, String)]
+  , body :: String
+  }
 
-const pipe = (...fns) => value =>
-  fns.reduce((acc, fn) => fn(acc), value);
+-- Curried constructor
+makeRequest :: String -> String -> [(String, String)] -> String -> Request
+makeRequest = Request
 
-const users = [
-  { name: 'John', age: 30, active: true },
-  { name: 'Jane', age: 25, active: false },
-  { name: 'Bob', age: 35, active: true }
-];
+-- Specialized builders
+getRequest :: String -> [(String, String)] -> String -> Request
+getRequest = makeRequest "GET"
 
-const getActiveUserNames = pipe(
-  filter(u => u.active),
-  map(u => u.name),
-  reduce((acc, name) => [...acc, name], [])
-);
+postRequest :: String -> [(String, String)] -> String -> Request
+postRequest = makeRequest "POST"
 
-getActiveUserNames(users);  // ['John', 'Bob']
+-- Even more specialized
+getUser :: [(String, String)] -> String -> Request
+getUser = getRequest "/api/user"
+
+-- Usage
+request :: Request
+request = getUser [("Auth", "token")] ""
 ```
 
-## Advanced Patterns
+## Advanced: Currying for Configuration
 
-### Placeholder Arguments
+```haskell
+-- Database query builder
+query :: String -> String -> [(String, String)] -> String -> String
+query table fields conditions orderBy =
+  "SELECT " ++ fields
+  ++ " FROM " ++ table
+  ++ " WHERE " ++ show conditions
+  ++ " ORDER BY " ++ orderBy
 
-```javascript
-const _ = Symbol('placeholder');
+-- Specialized queries
+queryUsers :: String -> [(String, String)] -> String -> String
+queryUsers = query "users"
 
-function curry(fn) {
-  return function curried(...args) {
-    const hasPlaceholder = args.includes(_);
+queryAllUsers :: [(String, String)] -> String -> String
+queryAllUsers = queryUsers "*"
 
-    if (!hasPlaceholder && args.length >= fn.length) {
-      return fn.apply(this, args);
-    }
+-- Even more specialized
+activeUsers :: String -> String
+activeUsers = queryAllUsers [("active", "true")]
 
-    return function(...nextArgs) {
-      const newArgs = args.map(arg =>
-        arg === _ && nextArgs.length ? nextArgs.shift() : arg
-      );
-      return curried(...newArgs, ...nextArgs);
-    };
-  };
-}
-
-const divide = curry((a, b, c) => a / b / c);
-
-// Skip arguments with placeholder
-const divideBy2 = divide(_, 2);
-divideBy2(10, 5);  // 1
-
-const divideTenBy = divide(10);
-divideTenBy(2, 5);  // 1
+-- Usage
+activeUsers "created_at"
+-- "SELECT * FROM users WHERE [(\"active\",\"true\")] ORDER BY created_at"
 ```
 
-### Auto-Currying Object Methods
+## Currying with Higher-Order Functions
 
-```javascript
-const autoCurry = obj => {
-  const curried = {};
+```haskell
+-- fold with partial application
+sum' :: [Int] -> Int
+sum' = foldl (+) 0
 
-  Object.keys(obj).forEach(key => {
-    const fn = obj[key];
-    if (typeof fn === 'function') {
-      curried[key] = curry(fn);
-    } else {
-      curried[key] = fn;
-    }
-  });
+product' :: [Int] -> Int
+product' = foldl (*) 1
 
-  return curried;
-};
+concat' :: [[a]] -> [a]
+concat' = foldl (++) []
 
-const math = autoCurry({
-  add: (a, b) => a + b,
-  multiply: (a, b) => a * b,
-  divide: (a, b) => a / b
-});
+sum' [1, 2, 3, 4]           -- 10
+product' [1, 2, 3, 4]       -- 24
+concat' [[1,2], [3,4]]      -- [1,2,3,4]
 
-const add5 = math.add(5);
-const double = math.multiply(2);
+-- scanl with partial application
+runningSum :: [Int] -> [Int]
+runningSum = scanl (+) 0
 
-add5(3);    // 8
-double(4);  // 8
+runningProduct :: [Int] -> [Int]
+runningProduct = scanl (*) 1
+
+runningSum [1, 2, 3, 4]      -- [0,1,3,6,10]
+runningProduct [1, 2, 3, 4]  -- [1,1,2,6,24]
 ```
 
-## Real-World Example: Form Builder
+## Uncurrying
 
-```javascript
-const createField = type => name => label => validation => ({
-  type,
-  name,
-  label,
-  validation
-});
+Sometimes you need to convert back to tuple form:
 
-const textField = createField('text');
-const emailField = createField('email');
-const numberField = createField('number');
+```haskell
+-- uncurry :: (a -> b -> c) -> (a, b) -> c
+uncurry f (x, y) = f x y
 
-const required = message => value =>
-  value ? null : message;
+-- Useful for working with pairs
+add :: Int -> Int -> Int
+add x y = x + y
 
-const minLength = min => message => value =>
-  value.length >= min ? null : message;
+addPair :: (Int, Int) -> Int
+addPair = uncurry add
 
-const isEmail = message => value =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : message;
+addPair (3, 5)  -- 8
 
-// Build form fields
-const usernameField = textField('username')('Username')(
-  minLength(3)('Must be at least 3 characters')
-);
+-- Map over pairs
+pairs :: [(Int, Int)]
+pairs = [(1, 2), (3, 4), (5, 6)]
 
-const emailInput = emailField('email')('Email Address')(
-  isEmail('Invalid email format')
-);
+map (uncurry add) pairs
+-- [3, 7, 11]
 
-const ageField = numberField('age')('Age')(
-  required('Age is required')
-);
-
-const form = [usernameField, emailInput, ageField];
+map (uncurry (*)) pairs
+-- [2, 12, 30]
 ```
 
-## Performance Considerations
+## Multi-Argument Functions
 
-### Memoization with Currying
+```haskell
+-- Three arguments
+clamp :: Int -> Int -> Int -> Int
+clamp minVal maxVal x = max minVal (min maxVal x)
 
-```javascript
-const memoizeCurried = fn => {
-  const cache = new Map();
+-- Partially apply bounds
+clamp0to100 :: Int -> Int
+clamp0to100 = clamp 0 100
 
-  return function curried(...args) {
-    const key = JSON.stringify(args);
+clamp0to100 150  -- 100
+clamp0to100 50   -- 50
+clamp0to100 (-10)  -- 0
 
-    if (cache.has(key)) {
-      return cache.get(key);
-    }
+-- Four arguments
+replace :: Eq a => a -> a -> [a] -> [a]
+replace old new = map (\x -> if x == old then new else x)
 
-    if (args.length >= fn.length) {
-      const result = fn.apply(this, args);
-      cache.set(key, result);
-      return result;
-    }
+-- Partial applications
+replaceSpaces :: Char -> String -> String
+replaceSpaces = replace ' '
 
-    return (...nextArgs) =>
-      curried(...args, ...nextArgs);
-  };
-};
+removeSpaces :: String -> String
+removeSpaces = replaceSpaces '_'
+
+removeSpaces "hello world"  -- "hello_world"
 ```
 
-## When to Use Currying
+## Practical Pipeline Example
 
-### Good Use Cases
+```haskell
+data User = User
+  { userId :: Int
+  , userName :: String
+  , userAge :: Int
+  , userActive :: Bool
+  } deriving Show
 
-✅ Creating specialized versions of generic functions
-✅ Building reusable validators and transformers
-✅ Composing functions in pipelines
-✅ Partial application of configuration
-✅ Creating DSLs (Domain Specific Languages)
+users :: [User]
+users =
+  [ User 1 "Alice" 30 True
+  , User 2 "Bob" 25 False
+  , User 3 "Charlie" 35 True
+  , User 4 "Diana" 28 True
+  ]
 
-### When to Avoid
+-- Curried predicates
+isActive :: User -> Bool
+isActive = userActive
 
-❌ Simple functions that don't benefit from partial application
-❌ Functions that are only called once
-❌ When it reduces code clarity
-❌ Performance-critical hot paths (extra function calls)
+ageAbove :: Int -> User -> Bool
+ageAbove n user = userAge user > n
+
+nameIs :: String -> User -> Bool
+nameIs name user = userName user == name
+
+-- Combine with filter
+activeUsers :: [User] -> [User]
+activeUsers = filter isActive
+
+oldActiveUsers :: [User] -> [User]
+oldActiveUsers = filter isActive . filter (ageAbove 30)
+
+-- Extract fields
+names :: [User] -> [String]
+names = map userName
+
+ages :: [User] -> [Int]
+ages = map userAge
+
+-- Full pipeline
+activeOldNames :: [User] -> [String]
+activeOldNames = names . filter (ageAbove 30) . filter isActive
+
+activeOldNames users
+-- ["Charlie"]
+```
 
 ## Key Takeaways
 
-1. **Currying enables partial application** - fix some arguments, leave others for later
-2. **Improved reusability** - create specialized functions from generic ones
-3. **Better composition** - curried functions compose more naturally
-4. **Pointfree style** - write cleaner code without explicit parameters
-5. **Configuration separation** - separate config from data
+1. **All functions are curried** - in Haskell, this is automatic
+2. **Partial application** - create specialized functions by applying some arguments
+3. **Sections** - partially apply operators with special syntax
+4. **Composition** - currying makes function composition natural
+5. **Flip** - reorder arguments when needed for partial application
 
-Currying is a powerful technique that enables more flexible and reusable function design. Used appropriately, it leads to cleaner, more maintainable code.
+Currying transforms how you think about functions. Instead of "functions with multiple arguments," think "functions returning functions." This unlocks powerful composition and reusability.
