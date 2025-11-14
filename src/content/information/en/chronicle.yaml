@@ -1,20 +1,80 @@
 "2025-11-14":
-  - Migrated blog to Astro with ThoughtLite theme
+  - Launched new blog with Astro and ThoughtLite theme
   - Converted all posts to Haskell examples
   - Added advanced FP topics (HKT, STM, Optics, Free Monads)
+  - First jotting posts published
 
 "2025-11-01":
   - ~Started writing about React and Next.js
   - Decided to focus on advanced functional programming
+  - Began rewriting all content with Haskell focus
+
+"2025-10-15":
+  - Published deep dive on lens library internals
+  - Gave talk on optics at local FP meetup
+  - Started contributing to Control.Lens documentation
 
 "2025-10-01":
   - Deep dive into Haskell's type system
   - Exploring lens library and optics patterns
+  - Read "Profunctor Optics" paper cover to cover
+
+"2025-09-20":
+  - Built inventory system using STM
+  - Discovered the beauty of composable transactions
+  - Zero race conditions, zero deadlocks
 
 "2025-09-01":
   - Learning Software Transactional Memory
   - Building concurrent systems with STM
+  - Finally understood why locks are the wrong abstraction
+
+"2025-08-15":
+  - Contributed first PR to mtl library
+  - Implemented custom effect type classes for work project
+  - Effect systems clicked into place
 
 "2025-08-01":
   - Started exploring higher-kinded types
   - Understanding type class hierarchies
+  - Mind blown by kind polymorphism
+
+"2025-07-10":
+  - Read "Functional Programming in Haskell" paper series
+  - Implemented free monad DSL for configuration
+  - Multiple interpreters for the same business logic!
+
+"2025-06-20":
+  - First real production Haskell code deployed
+  - Parser combinator library for custom DSL
+  - Zero runtime errors so far
+
+"2025-06-01":
+  - Started learning Haskell seriously
+  - ~Gave up on Haskell after first day
+  - Stuck with it, read "Learn You a Haskell"
+
+"2025-05-01":
+  - Discovered category theory through Bartosz Milewski
+  - Everything clicked: functors, monads, natural transformations
+  - Started seeing patterns everywhere
+
+"2025-04-01":
+  - Hit wall with complex OOP codebase
+  - Started researching alternatives to inheritance
+  - Found functional programming
+
+"2025-03-01":
+  - First exposure to immutability (Redux)
+  - Wondered why everything couldn't be immutable
+  - Searched "languages with immutability by default"
+
+"2025-02-01":
+  - Debugging race condition for third week straight
+  - Realized mutable state is the enemy
+  - Started questioning everything I knew about programming
+
+"2025-01-01":
+  - New year, new explorations
+  - Set goal to learn something radically different
+  - Found Rich Hickey's "Simple Made Easy" talk
