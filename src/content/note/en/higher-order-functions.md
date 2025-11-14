@@ -6,15 +6,18 @@ tags: [fp, hof, haskell]
 toc: true
 ---
 
-# Higher-Order Functions - Functions as First-Class Citizens
+In functional programming, functions are treated as first-class citizens—meaning they're just as important as any other value in your program. You can store them in variables, pass them as arguments to other functions, and return them as results. This simple idea unlocks incredibly powerful programming patterns.
 
-In functional programming, functions are first-class citizens. This means they can be passed as arguments, returned from other functions, and assigned to variables. Higher-order functions leverage this to create powerful abstractions.
+Higher-order functions are functions that work with other functions. They either take functions as arguments, return functions as results, or both. This might sound abstract, but you've probably used them before without realizing it—whenever you use `map`, `filter`, or similar operations on lists.
 
-## What is a Higher-Order Function?
+## What Makes a Function "Higher-Order"?
 
-A higher-order function is a function that:
-1. Takes one or more functions as arguments, or
-2. Returns a function as its result
+A function is considered higher-order if it does at least one of these things:
+
+1. **Takes a function as an argument** - Like a function that accepts a transformation to apply
+2. **Returns a function as its result** - Like a function factory that builds customized functions
+
+Let's see both in action:
 
 ```haskell
 -- Takes a function as argument
@@ -24,80 +27,84 @@ applyTwice f x = f (f x)
 -- Returns a function
 makeAdder :: Int -> (Int -> Int)
 makeAdder n = \x -> x + n
-
--- Usage
-applyTwice (+3) 10    -- 16
-add5 = makeAdder 5
-add5 7                -- 12
 ```
 
-## Standard Higher-Order Functions
-
-### Map
-
-Transform each element in a list:
+The first example, `applyTwice`, takes any function `f` and applies it twice to a value. The second, `makeAdder`, creates a new function that adds a specific number. Here's how they work:
 
 ```haskell
--- map :: (a -> b) -> [a] -> [b]
+applyTwice (+3) 10    -- Result: 16 (10 + 3 + 3)
+add5 = makeAdder 5
+add5 7                -- Result: 12 (7 + 5)
+```
+
+## The Big Three: Map, Filter, and Fold
+
+These are the most common higher-order functions you'll encounter. They form the foundation of functional list processing.
+
+### Map - Transform Every Element
+
+`map` takes a function and applies it to every element in a list, giving you a new list with the transformed values. Think of it like an assembly line where each item gets the same treatment.
+
+```haskell
+-- Signature: map :: (a -> b) -> [a] -> [b]
 
 map (*2) [1, 2, 3, 4, 5]
--- [2, 4, 6, 8, 10]
+-- Doubles each number: [2, 4, 6, 8, 10]
 
 map toUpper "hello"
--- "HELLO"
+-- Uppercases each character: "HELLO"
 
 map (\x -> x * x) [1, 2, 3]
--- [1, 4, 9]
+-- Squares each number: [1, 4, 9]
 ```
 
-### Filter
+The beauty of `map` is that it separates *what* you want to do (the transformation function) from *where* you want to do it (the list). This makes your code more modular and reusable.
 
-Keep only elements that satisfy a predicate:
+### Filter - Keep Only What Matches
+
+`filter` keeps only the elements that pass a test (return `True` for a given predicate function). It's like a bouncer at a club—only letting through what meets the criteria.
 
 ```haskell
--- filter :: (a -> Bool) -> [a] -> [a]
+-- Signature: filter :: (a -> Bool) -> [a] -> [a]
 
 filter even [1, 2, 3, 4, 5, 6]
--- [2, 4, 6]
+-- Keeps only even numbers: [2, 4, 6]
 
 filter (> 5) [3, 8, 1, 9, 2]
--- [8, 9]
-
-filter isPrime [1..20]
--- [2, 3, 5, 7, 11, 13, 17, 19]
+-- Keeps only numbers greater than 5: [8, 9]
 ```
 
-### Fold (Reduce)
+You can combine `filter` with `map` to first select what you want, then transform it. This is called composition, and it's one of the most powerful patterns in functional programming.
 
-Combine elements into a single value:
+### Fold - Combine Into One Value
+
+`fold` (also called `reduce`) takes a list and combines all its elements into a single value using a function you provide. Think of it like folding a piece of paper repeatedly—each fold combines what you have so far with the next piece.
 
 ```haskell
--- foldl :: (b -> a -> b) -> b -> [a] -> b
--- foldr :: (a -> b -> b) -> b -> [a] -> b
+-- Left fold: foldl :: (b -> a -> b) -> b -> [a] -> b
+-- Right fold: foldr :: (a -> b -> b) -> b -> [a] -> b
 
--- Sum
+-- Sum all numbers
 foldl (+) 0 [1, 2, 3, 4, 5]
--- 15
+-- Works like: ((((0 + 1) + 2) + 3) + 4) + 5 = 15
 
--- Product
+-- Multiply all numbers
 foldl (*) 1 [1, 2, 3, 4]
--- 24
+-- Works like: ((((1 * 1) * 2) * 3) * 4) = 24
 
--- Reverse
-foldl (flip (:)) [] [1, 2, 3]
--- [3, 2, 1]
-
--- Maximum
+-- Find the maximum
 foldl1 max [3, 1, 4, 1, 5, 9]
--- 9
+-- Compares each number to find the largest: 9
 ```
 
-## Function Composition
+The first argument to `foldl` is the combining function, the second is the starting value, and the third is the list to process.
 
-Combine functions to create new ones:
+## Function Composition - Building Bigger from Smaller
+
+One of the key benefits of higher-order functions is that you can combine simple functions to build more complex ones. The composition operator `(.)` lets you chain functions together, where the output of one becomes the input of the next.
 
 ```haskell
--- (.) :: (b -> c) -> (a -> b) -> a -> c
+-- Signature: (.) :: (b -> c) -> (a -> b) -> a -> c
 
 double :: Int -> Int
 double x = x * 2
@@ -105,98 +112,101 @@ double x = x * 2
 increment :: Int -> Int
 increment x = x + 1
 
--- Compose
+-- Compose them: first double, then increment
 doubleAndIncrement :: Int -> Int
 doubleAndIncrement = increment . double
 
 doubleAndIncrement 5
--- 11  (5 * 2 = 10, then 10 + 1 = 11)
+-- First: 5 * 2 = 10, then: 10 + 1 = 11
+```
 
--- Multiple composition
+You can chain as many functions as you want. This example processes a string by reversing it, filtering to only letters, then uppercasing:
+
+```haskell
 process :: String -> String
 process = map toUpper . filter isAlpha . reverse
 
 process "hello, world!"
--- "DLROWOLLEH"
+-- Result: "DLROWOLLEH"
 ```
 
-## Creating Higher-Order Functions
+Read composition from right to left—it's like a pipeline where data flows through each transformation.
 
-### Predicate Combinators
+## Creating Your Own Higher-Order Functions
+
+You're not limited to the built-in functions. Creating your own higher-order functions lets you capture patterns specific to your problem domain.
+
+### Combining Predicates
+
+Here's how you might combine multiple test functions:
 
 ```haskell
--- Combine predicates
+-- Check if both conditions are true
 both :: (a -> Bool) -> (a -> Bool) -> a -> Bool
 both p q x = p x && q x
 
+-- Check if either condition is true
 either' :: (a -> Bool) -> (a -> Bool) -> a -> Bool
 either' p q x = p x || q x
 
+-- Negate a condition
 neg :: (a -> Bool) -> a -> Bool
 neg p x = not (p x)
+```
 
--- Usage
+Now you can build complex predicates from simple ones:
+
+```haskell
 isEvenAndPositive :: Int -> Bool
 isEvenAndPositive = both even (> 0)
 
 filter isEvenAndPositive [-2, -1, 0, 1, 2, 3, 4]
--- [2, 4]
+-- Result: [2, 4]
 ```
 
-### Function Transformers
+### Repeating Functions
+
+Want to apply a function multiple times? Here's a higher-order function that does exactly that:
 
 ```haskell
--- Apply function n times
 times :: Int -> (a -> a) -> a -> a
-times 0 f = id
-times n f = f . times (n - 1) f
+times 0 f = id  -- No times means do nothing
+times n f = f . times (n - 1) f  -- Apply f, then recurse
 
 times 3 (*2) 5
--- 40  (5 * 2 * 2 * 2)
-
--- Flip arguments
-flip' :: (a -> b -> c) -> b -> a -> c
-flip' f x y = f y x
-
--- Const - ignore second argument
-const' :: a -> b -> a
-const' x _ = x
-
-map (const' 0) [1, 2, 3]
--- [0, 0, 0]
+-- Doubles three times: 5 * 2 * 2 * 2 = 40
 ```
 
-## Partial Application
+## Partial Application - Specialized Functions
 
-Apply some arguments to get a new function:
+In Haskell, all functions are automatically "curried"—they take one argument at a time. This means when you call a function with fewer arguments than it expects, you get back a new function waiting for the rest.
+
+This is incredibly useful for creating specialized versions of general functions:
 
 ```haskell
--- All functions are curried in Haskell
 add :: Int -> Int -> Int
 add x y = x + y
 
--- Partial application
+-- Partial application: give just the first argument
 add5 :: Int -> Int
 add5 = add 5
 
-add5 10
--- 15
+add5 10  -- Result: 15
 
--- With operators
-multiplyBy10 :: Int -> Int
+-- Works with operators too
 multiplyBy10 = (*10)
-
-divideBy2 :: Double -> Double
 divideBy2 = (/2)
 
--- In filter/map
-filter (> 5) [1..10]
-map (*2) [1..5]
+-- Use in filter and map
+filter (> 5) [1..10]  -- Keep numbers greater than 5
+map (*2) [1..5]       -- Double each number
 ```
 
-## Practical Examples
+This pattern is everywhere in functional programming. Instead of writing lots of similar functions, you write one general function and create specialized versions through partial application.
 
-### Data Processing Pipeline
+## Practical Example - Data Processing
+
+Let's see how these concepts work together in a real scenario. Imagine you have a list of people and want to find specific information:
 
 ```haskell
 data Person = Person
@@ -213,71 +223,29 @@ people =
   , Person "Diana" 28 48000
   ]
 
--- Get names of people over 30 earning more than 50k
+-- Find names of people over 30 earning more than 50k
 highEarners :: [Person] -> [String]
 highEarners =
-  map name
-  . filter (\p -> salary p > 50000)
-  . filter (\p -> age p > 30)
+  map name                          -- Extract names
+  . filter (\p -> salary p > 50000) -- Keep high earners
+  . filter (\p -> age p > 30)       -- Keep those over 30
 
 highEarners people
--- ["Charlie"]
+-- Result: ["Charlie"]
 ```
 
-### Custom Higher-Order Functions
+Notice how we built a complex query by composing simple operations. Each function does one thing well, and they combine naturally.
+
+## Point-Free Style - Implicit Arguments
+
+Sometimes you can write functions without explicitly naming their arguments. This is called "point-free" or "tacit" style. While it can be more abstract, it often reveals the essence of what a function does:
 
 ```haskell
--- Retry a function n times until it succeeds
-retry :: Int -> (a -> Maybe b) -> a -> Maybe b
-retry 0 _ _ = Nothing
-retry n f x = case f x of
-  Just result -> Just result
-  Nothing -> retry (n - 1) f x
-
--- Compose a list of functions
-composeAll :: [a -> a] -> a -> a
-composeAll = foldr (.) id
-
-transforms :: [Int -> Int]
-transforms = [(*2), (+10), subtract 3]
-
-composeAll transforms 5
--- 17  ((5 - 3) + 10) * 2
-```
-
-### Memoization
-
-```haskell
-import Data.Function.Memoize
-
--- Slow fibonacci
-fib :: Int -> Integer
-fib 0 = 0
-fib 1 = 1
-fib n = fib (n - 1) + fib (n - 2)
-
--- Fast memoized fibonacci
-fibMemo :: Int -> Integer
-fibMemo = memoize fib'
-  where
-    fib' 0 = 0
-    fib' 1 = 1
-    fib' n = fibMemo (n - 1) + fibMemo (n - 2)
-
-fibMemo 100
--- 354224848179261915075 (instant)
-```
-
-## Point-Free Style
-
-Define functions without explicitly mentioning arguments:
-
-```haskell
--- Pointful
+-- With explicit argument (pointful)
 sumSquares :: [Int] -> Int
 sumSquares xs = sum (map (\x -> x * x) xs)
 
--- Point-free
+-- Without naming the list (point-free)
 sumSquares' :: [Int] -> Int
 sumSquares' = sum . map (^2)
 
@@ -287,81 +255,17 @@ isEven = (== 0) . (`mod` 2)
 
 length' :: [a] -> Int
 length' = foldr (\_ acc -> acc + 1) 0
-
-null' :: [a] -> Bool
-null' = foldr (\_ _ -> False) True
 ```
 
-## Applicative Style
+Point-free style isn't always better—use it when it makes the code clearer, not just shorter.
 
-Apply functions with multiple arguments:
+## Why This Matters
 
-```haskell
-import Control.Applicative
+Higher-order functions fundamentally change how you think about programming. Instead of writing specific procedures for each task, you write general transformations and combine them. This leads to:
 
--- Apply a binary function
-liftA2' :: (a -> b -> c) -> [a] -> [b] -> [c]
-liftA2' f xs ys = f <$> xs <*> ys
+- **Less code duplication** - Write the pattern once, customize with functions
+- **More reusability** - Small, focused functions can be used many ways
+- **Easier testing** - Pure functions with no side effects are simple to test
+- **Better composition** - Build complex behavior from simple pieces
 
--- Cartesian product
-pairs :: [a] -> [b] -> [(a, b)]
-pairs = liftA2 (,)
-
-pairs [1, 2] ['a', 'b']
--- [(1,'a'), (1,'b'), (2,'a'), (2,'b')]
-
--- All combinations
-combinations :: [Int] -> [Int] -> [Int]
-combinations = liftA2 (+)
-
-combinations [1, 2] [10, 20]
--- [11, 21, 12, 22]
-```
-
-## Monadic Higher-Order Functions
-
-### mapM
-
-Map with effects:
-
-```haskell
--- mapM :: Monad m => (a -> m b) -> [a] -> m [b]
-
--- Print each element and collect results
-printAndDouble :: Int -> IO Int
-printAndDouble x = do
-  print x
-  return (x * 2)
-
-mapM printAndDouble [1, 2, 3]
--- Prints: 1, 2, 3
--- Returns: IO [2, 4, 6]
-```
-
-### filterM
-
-Filter with monadic predicate:
-
-```haskell
--- filterM :: Monad m => (a -> m Bool) -> [a] -> m [a]
-
--- Interactive filter
-askKeep :: Int -> IO Bool
-askKeep x = do
-  putStrLn $ "Keep " ++ show x ++ "? (y/n)"
-  answer <- getLine
-  return (answer == "y")
-
-filterM askKeep [1, 2, 3]
--- Interactive prompts, returns filtered list
-```
-
-## Key Takeaways
-
-1. **Functions as values** - pass and return functions freely
-2. **Map/filter/fold** - fundamental higher-order operations
-3. **Composition** - combine simple functions into complex ones
-4. **Partial application** - create specialized functions
-5. **Point-free** - express intent without naming arguments
-
-Higher-order functions are the foundation of functional programming. They enable code reuse, composition, and declarative style that's more maintainable than imperative alternatives.
+The examples here just scratch the surface. As you work with higher-order functions more, you'll start seeing patterns everywhere and finding elegant solutions to complex problems.
