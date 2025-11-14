@@ -6,20 +6,7 @@ import i18nit from "$i18n";
 import ThemeSwitcher from "./ThemeSwitcher.svelte";
 import Menu from "./Menu.svelte";
 
-let {
-	locale,
-	route,
-	home,
-	note,
-	jotting,
-	about,
-	globe,
-	rss,
-	sun,
-	moon,
-	bars,
-	close
-}: { locale: string; route: string } & { [key: string]: Snippet } = $props();
+let { locale, route, jotting, about, globe, rss, sun, moon, bars, close }: { locale: string; route: string } & { [key: string]: Snippet } = $props();
 
 const t = i18nit(locale);
 
