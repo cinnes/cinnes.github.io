@@ -2,569 +2,526 @@
 title: Optics - Composable Getters and Setters
 timestamp: 2025-11-18 00:00:00+00:00
 description: Master lenses, prisms, and other optics to elegantly read and update deeply nested immutable data structures with composable, reusable operations.
-tags: [fp, optics, lenses, advanced]
+tags: [fp, optics, lenses, haskell]
 toc: true
 ---
 
 # Optics - Composable Getters and Setters
 
-Optics provide a composable way to focus on parts of immutable data structures. They let you read, update, and traverse nested data elegantly without verbose spread syntax or mutation.
+Optics provide a composable way to focus on parts of immutable data structures. Haskell's `lens` library offers a powerful toolkit for reading, updating, and traversing nested data elegantly.
 
 ## The Problem
 
-Updating nested immutable data is painful:
+Updating nested immutable data is verbose:
 
-```typescript
-// Update nested field
-const user = {
-  name: 'Alice',
-  address: {
-    street: {
-      name: 'Main St',
-      number: 123
-    },
-    city: 'NYC'
-  }
-};
+```haskell
+data Address = Address
+  { _street :: String
+  , _city :: String
+  , _zipCode :: String
+  } deriving Show
 
-// Update street number
-const updated = {
-  ...user,
-  address: {
-    ...user.address,
-    street: {
-      ...user.address.street,
-      number: 456
-    }
-  }
-};
+data Person = Person
+  { _name :: String
+  , _age :: Int
+  , _address :: Address
+  } deriving Show
+
+-- Update city deeply nested
+updateCity :: String -> Person -> Person
+updateCity newCity person =
+  person { _address = (_address person) { _city = newCity } }
 ```
 
 This doesn't scale. Optics solve this.
 
 ## Lenses - Focus on a Field
 
-A lens is a pair of get/set functions:
+A lens focuses on a field within a structure:
 
-```typescript
-// Lens type
-type Lens<S, A> = {
-  get: (s: S) => A;
-  set: (a: A) => (s: S) => S;
-};
+```haskell
+{-# LANGUAGE TemplateHaskell #-}
 
-// Create a lens
-function lens<S, A>(
-  get: (s: S) => A,
-  set: (a: A) => (s: S) => S
-): Lens<S, A> {
-  return { get, set };
-}
+import Control.Lens
 
-// Lens for accessing a field
-function prop<S, K extends keyof S>(key: K): Lens<S, S[K]> {
-  return lens(
-    (s) => s[key],
-    (a) => (s) => ({ ...s, [key]: a })
-  );
-}
+-- Generate lenses automatically
+data Person = Person
+  { _name :: String
+  , _age :: Int
+  , _address :: Address
+  } deriving Show
 
-// Example lenses
-type User = {
-  name: string;
-  age: number;
-};
+data Address = Address
+  { _street :: String
+  , _city :: String
+  } deriving Show
 
-const nameLens: Lens<User, string> = prop('name');
-const ageLens: Lens<User, number> = prop('age');
+makeLenses ''Person
+makeLenses ''Address
 
-const user: User = { name: 'Alice', age: 30 };
+-- Now we have:
+-- name :: Lens' Person String
+-- age :: Lens' Person Int
+-- address :: Lens' Person Address
+-- street :: Lens' Address String
+-- city :: Lens' Address String
+```
 
-nameLens.get(user);           // 'Alice'
-nameLens.set('Bob')(user);    // { name: 'Bob', age: 30 }
+## Basic Lens Operations
+
+```haskell
+alice :: Person
+alice = Person "Alice" 30 (Address "Main St" "NYC")
+
+-- View: get a value
+alice ^. name
+-- "Alice"
+
+alice ^. age
+-- 30
+
+-- Set: update a value
+alice & name .~ "Alicia"
+-- Person "Alicia" 30 (Address "Main St" "NYC")
+
+alice & age .~ 31
+-- Person "Alice" 31 (Address "Main St" "NYC")
+
+-- Over: modify with a function
+alice & age %~ (+1)
+-- Person "Alice" 31 (Address "Main St" "NYC")
+
+alice & name %~ map toUpper
+-- Person "ALICE" 30 (Address "Main St" "NYC")
 ```
 
 ## Lens Composition
 
 The power of lenses: composition!
 
-```typescript
-// Compose two lenses
-function compose<A, B, C>(
-  outer: Lens<A, B>,
-  inner: Lens<B, C>
-): Lens<A, C> {
-  return lens(
-    (a) => inner.get(outer.get(a)),
-    (c) => (a) => outer.set(inner.set(c)(outer.get(a)))(a)
-  );
-}
+```haskell
+-- Compose lenses with (.)
+personCity :: Lens' Person String
+personCity = address . city
 
-// Example: nested access
-type Address = {
-  street: string;
-  city: string;
-};
+-- Access nested field
+alice ^. address . city
+-- "NYC"
 
-type Person = {
-  name: string;
-  address: Address;
-};
+-- Or use the composed lens
+alice ^. personCity
+-- "NYC"
 
-const addressLens: Lens<Person, Address> = prop('address');
-const streetLens: Lens<Address, string> = prop('street');
+-- Update nested field
+alice & address . city .~ "Boston"
+-- Person "Alice" 30 (Address "Main St" "Boston")
 
-// Compose to access nested field
-const personStreetLens = compose(addressLens, streetLens);
+alice & personCity .~ "Boston"
+-- Same result
 
-const person: Person = {
-  name: 'Alice',
-  address: { street: 'Main St', city: 'NYC' }
-};
-
-personStreetLens.get(person);              // 'Main St'
-personStreetLens.set('Oak Ave')(person);   // { ..., address: { street: 'Oak Ave', ... } }
+-- Modify nested field
+alice & address . city %~ map toUpper
+-- Person "Alice" 30 (Address "Main St" "NYC")
 ```
 
-## Lens Operations
+## Prisms - Focus on a Constructor
 
-```typescript
-// Modify through a lens
-function modify<S, A>(
-  lens: Lens<S, A>,
-  f: (a: A) => A
-): (s: S) => S {
-  return (s) => lens.set(f(lens.get(s)))(s);
-}
+Prisms handle sum types where the focus might not exist:
 
-// Example: increment age
-const incrementAge = modify(ageLens, (age) => age + 1);
+```haskell
+data Result a
+  = Success a
+  | Failure String
+  deriving Show
 
-incrementAge(user);  // { name: 'Alice', age: 31 }
+makePrisms ''Result
 
-// Uppercase name
-const uppercaseName = modify(nameLens, (name) => name.toUpperCase());
+-- Generated prisms:
+-- _Success :: Prism' (Result a) a
+-- _Failure :: Prism' (Result a) String
 
-uppercaseName(user);  // { name: 'ALICE', age: 30 }
-```
+result1 :: Result Int
+result1 = Success 42
 
-## Array Lenses
+result2 :: Result Int
+result2 = Failure "error"
 
-```typescript
-// Lens for array index
-function index<A>(i: number): Lens<A[], A | undefined> {
-  return lens(
-    (arr) => arr[i],
-    (a) => (arr) => {
-      if (a === undefined) return arr;
-      const copy = [...arr];
-      copy[i] = a;
-      return copy;
-    }
-  );
-}
+-- Preview: try to extract
+result1 ^? _Success
+-- Just 42
 
-const numbers = [1, 2, 3, 4, 5];
-const secondLens = index<number>(1);
+result2 ^? _Success
+-- Nothing
 
-secondLens.get(numbers);       // 2
-secondLens.set(10)(numbers);   // [1, 10, 3, 4, 5]
-```
+result2 ^? _Failure
+-- Just "error"
 
-## Prisms - Focus on a Case
+-- Review: construct
+_Success # 100
+-- Success 100
 
-Prisms handle sum types (unions) where the focus might not exist:
-
-```typescript
-// Prism type
-type Prism<S, A> = {
-  preview: (s: S) => A | undefined;
-  review: (a: A) => S;
-};
-
-function prism<S, A>(
-  preview: (s: S) => A | undefined,
-  review: (a: A) => S
-): Prism<S, A> {
-  return { preview, review };
-}
-
-// Example: Either type
-type Either<L, R> =
-  | { tag: 'Left'; value: L }
-  | { tag: 'Right'; value: R };
-
-// Prism for Right case
-function rightPrism<L, R>(): Prism<Either<L, R>, R> {
-  return prism(
-    (either) => either.tag === 'Right' ? either.value : undefined,
-    (value) => ({ tag: 'Right', value })
-  );
-}
-
-// Prism for Left case
-function leftPrism<L, R>(): Prism<Either<L, R>, L> {
-  return prism(
-    (either) => either.tag === 'Left' ? either.value : undefined,
-    (value) => ({ tag: 'Left', value })
-  );
-}
-
-// Usage
-const right: Either<string, number> = { tag: 'Right', value: 42 };
-const left: Either<string, number> = { tag: 'Left', value: 'error' };
-
-const rightP = rightPrism<string, number>();
-
-rightP.preview(right);   // 42
-rightP.preview(left);    // undefined
-rightP.review(100);      // { tag: 'Right', value: 100 }
-```
-
-## Optional - Lens + Prism
-
-An Optional combines lens and prism—accessing fields that might not exist:
-
-```typescript
-// Optional type
-type Optional<S, A> = {
-  getOption: (s: S) => A | undefined;
-  set: (a: A) => (s: S) => S;
-};
-
-function optional<S, A>(
-  getOption: (s: S) => A | undefined,
-  set: (a: A) => (s: S) => S
-): Optional<S, A> {
-  return { getOption, set };
-}
-
-// Optional for nullable field
-function nullable<S, K extends keyof S>(
-  key: K
-): Optional<S, NonNullable<S[K]>> {
-  return optional(
-    (s) => {
-      const value = s[key];
-      return value === null || value === undefined ? undefined : value;
-    },
-    (a) => (s) => ({ ...s, [key]: a })
-  );
-}
-
-// Example
-type Profile = {
-  bio?: string;
-  avatar?: string;
-};
-
-const bioOptional = nullable<Profile, 'bio'>('bio');
-
-const profile1: Profile = { bio: 'Hello' };
-const profile2: Profile = {};
-
-bioOptional.getOption(profile1);         // 'Hello'
-bioOptional.getOption(profile2);         // undefined
-bioOptional.set('New bio')(profile2);    // { bio: 'New bio' }
+_Failure # "oops"
+-- Failure "oops"
 ```
 
 ## Traversals - Focus on Multiple Elements
 
-Traversals let you operate on multiple values at once:
+Traversals operate on multiple values:
 
-```typescript
-// Traversal type
-type Traversal<S, A> = {
-  toList: (s: S) => A[];
-  modify: (f: (a: A) => A) => (s: S) => S;
-};
+```haskell
+-- Traverse list elements
+numbers :: [Int]
+numbers = [1, 2, 3, 4, 5]
 
-function traversal<S, A>(
-  toList: (s: S) => A[],
-  modify: (f: (a: A) => A) => (s: S) => S
-): Traversal<S, A> {
-  return { toList, modify };
-}
+-- View all (as list)
+numbers ^.. traverse
+-- [1, 2, 3, 4, 5]
 
-// Traversal for array elements
-function each<A>(): Traversal<A[], A> {
-  return traversal(
-    (arr) => arr,
-    (f) => (arr) => arr.map(f)
-  );
-}
+-- Modify all
+numbers & traverse %~ (*2)
+-- [2, 4, 6, 8, 10]
 
-// Usage
-const nums = [1, 2, 3, 4, 5];
-const eachNumber = each<number>();
-
-eachNumber.toList(nums);                    // [1, 2, 3, 4, 5]
-eachNumber.modify((n) => n * 2)(nums);      // [2, 4, 6, 8, 10]
+-- Set all
+numbers & traverse .~ 0
+-- [0, 0, 0, 0, 0]
 ```
 
-## Filtered Traversal
+## Filtered Traversals
 
-```typescript
-// Filter traversal
-function filtered<A>(
-  predicate: (a: A) => boolean
-): Traversal<A[], A> {
-  return traversal(
-    (arr) => arr.filter(predicate),
-    (f) => (arr) => arr.map(a => predicate(a) ? f(a) : a)
-  );
-}
+```haskell
+-- Only even numbers
+numbers ^.. traverse . filtered even
+-- [2, 4]
 
-// Example: even numbers
-const evens = filtered<number>((n) => n % 2 === 0);
+-- Modify only even numbers
+numbers & traverse . filtered even %~ (*10)
+-- [1, 20, 3, 40, 5]
 
-evens.toList([1, 2, 3, 4, 5]);              // [2, 4]
-evens.modify((n) => n * 10)([1, 2, 3, 4]);  // [1, 20, 3, 40]
+-- Only positive after transformation
+[1, -2, 3, -4] ^.. traverse . filtered (> 0)
+-- [1, 3]
 ```
 
-## Iso - Bidirectional Conversion
+## Record Updates
 
-An Iso represents an isomorphism—lossless conversion between types:
+```haskell
+data Company = Company
+  { _companyName :: String
+  , _employees :: [Person]
+  } deriving Show
 
-```typescript
-// Iso type
-type Iso<S, A> = {
-  to: (s: S) => A;
-  from: (a: A) => S;
-};
+makeLenses ''Company
 
-function iso<S, A>(
-  to: (s: S) => A,
-  from: (a: A) => S
-): Iso<S, A> {
-  return { to, from };
-}
+company :: Company
+company = Company "Acme Inc" [alice, bob, charlie]
 
-// String <-> Array<char>
-const stringArray: Iso<string, string[]> = iso(
-  (s) => s.split(''),
-  (arr) => arr.join('')
-);
+-- Update all employee ages
+company & employees . traverse . age %~ (+1)
 
-stringArray.to('hello');           // ['h', 'e', 'l', 'l', 'o']
-stringArray.from(['h', 'i']);      // 'hi'
+-- Update all employee cities
+company & employees . traverse . address . city .~ "Boston"
 
-// Celsius <-> Fahrenheit
-const celsiusFahrenheit: Iso<number, number> = iso(
-  (c) => c * 9 / 5 + 32,
-  (f) => (f - 32) * 5 / 9
-);
+-- Get all employee names
+company ^.. employees . traverse . name
+-- ["Alice", "Bob", "Charlie"]
 
-celsiusFahrenheit.to(0);     // 32
-celsiusFahrenheit.from(32);  // 0
+-- Find employees in NYC
+company ^.. employees . traverse . filtered (\p -> p ^. address . city == "NYC")
 ```
 
-## Practical Example: Deeply Nested Update
+## Isos - Bidirectional Conversion
 
-```typescript
-type Company = {
-  name: string;
-  departments: Department[];
-};
+An Iso represents an isomorphism:
 
-type Department = {
-  name: string;
-  employees: Employee[];
-};
+```haskell
+-- String <-> [Char] (trivial, but demonstrates concept)
+import Data.Char (toUpper, toLower)
 
-type Employee = {
-  name: string;
-  salary: number;
-};
+-- Celsius <-> Fahrenheit
+celsiusFahrenheit :: Iso' Double Double
+celsiusFahrenheit = iso toF toC
+  where
+    toF c = c * 9 / 5 + 32
+    toC f = (f - 32) * 5 / 9
 
-// Lenses
-const departmentsL: Lens<Company, Department[]> = prop('departments');
-const employeesL: Lens<Department, Employee[]> = prop('employees');
-const salaryL: Lens<Employee, number> = prop('salary');
+-- Use in both directions
+0 ^. celsiusFahrenheit
+-- 32.0
 
-// Traversals
-const eachDepartment = each<Department>();
-const eachEmployee = each<Employee>();
+32 ^. from celsiusFahrenheit
+-- 0.0
 
-// Compose: focus on all employee salaries
-function composeTraversals<A, B, C>(
-  t1: Traversal<A, B>,
-  t2: Traversal<B, C>
-): Traversal<A, C> {
-  return traversal(
-    (a) => t1.toList(a).flatMap(t2.toList),
-    (f) => t1.modify(t2.modify(f))
-  );
-}
-
-// Build complex optic
-const allSalaries = compose(
-  departmentsL,
-  {
-    get: (deps) => deps,
-    set: (deps) => () => deps
-  } as any  // Simplified
-);
-
-// Give everyone a 10% raise
-function giveRaise(company: Company): Company {
-  return modify(
-    departmentsL,
-    (deps) =>
-      deps.map(dep =>
-        modify(
-          employeesL,
-          (emps) =>
-            emps.map(emp =>
-              modify(salaryL, (sal) => sal * 1.1)(emp)
-            )
-        )(dep)
-      )
-  )(company);
-}
+-- In modifications
+[0, 10, 20] & traverse . celsiusFahrenheit %~ (+10)
+-- Adds 10 Fahrenheit to each Celsius value
 ```
 
-## Optics Library Pattern
+## At and Ix - Map and List Access
 
-```typescript
-// Fluent API for optics
-class OpticBuilder<S, A> {
-  constructor(
-    private getF: (s: S) => A,
-    private setF: (a: A) => (s: S) => S
-  ) {}
+```haskell
+import qualified Data.Map as Map
 
-  get(s: S): A {
-    return this.getF(s);
-  }
+-- Map access
+userMap :: Map.Map Int String
+userMap = Map.fromList [(1, "Alice"), (2, "Bob")]
 
-  set(a: A): (s: S) => S {
-    return this.setF(a);
-  }
+-- at: access map key (Maybe)
+userMap ^. at 1
+-- Just "Alice"
 
-  modify(f: (a: A) => A): (s: S) => S {
-    return (s) => this.setF(f(this.getF(s)))(s);
-  }
+userMap ^. at 99
+-- Nothing
 
-  compose<B>(other: OpticBuilder<A, B>): OpticBuilder<S, B> {
-    return new OpticBuilder(
-      (s) => other.getF(this.getF(s)),
-      (b) => (s) => this.setF(other.setF(b)(this.getF(s)))(s)
-    );
-  }
+-- Set map value
+userMap & at 1 .~ Just "Alicia"
+-- fromList [(1, "Alicia"), (2, "Bob")]
 
-  at<K extends keyof A>(key: K): OpticBuilder<S, A[K]> {
-    return this.compose(
-      new OpticBuilder(
-        (a) => a[key],
-        (v) => (a) => ({ ...a, [key]: v })
-      )
-    );
-  }
-}
+-- Delete map value
+userMap & at 1 .~ Nothing
+-- fromList [(2, "Bob")]
 
-// Create optic from root
-function fromRoot<S>(): OpticBuilder<S, S> {
-  return new OpticBuilder(
-    (s) => s,
-    (a) => () => a
-  );
-}
+-- ix: index with default behavior
+userMap ^? ix 1
+-- Just "Alice"
 
-// Usage
-type App = {
-  user: {
-    profile: {
-      name: string;
-      age: number;
-    };
-  };
-};
+-- Modify if exists
+userMap & ix 1 %~ map toUpper
+-- fromList [(1, "ALICE"), (2, "Bob")]
 
-const app: App = {
-  user: {
-    profile: {
-      name: 'Alice',
-      age: 30
-    }
-  }
-};
+-- List indexing
+[10, 20, 30] ^? ix 1
+-- Just 20
 
-const userNameOptic = fromRoot<App>()
-  .at('user')
-  .at('profile')
-  .at('name');
-
-userNameOptic.get(app);                    // 'Alice'
-userNameOptic.set('Bob')(app);             // { user: { profile: { name: 'Bob', ... } } }
-userNameOptic.modify(s => s.toUpperCase())(app);  // 'ALICE'
+[10, 20, 30] & ix 1 .~ 25
+-- [10, 25, 30]
 ```
 
-## Real-World: Form State Management
+## Operators
 
-```typescript
-type FormState = {
-  fields: {
-    email: { value: string; error?: string };
-    password: { value: string; error?: string };
-  };
-  submitting: boolean;
-};
+Common lens operators:
 
-// Field lens helper
-function field<K extends keyof FormState['fields']>(
-  key: K
-): Lens<FormState, FormState['fields'][K]> {
-  return compose(
-    prop('fields'),
-    prop(key)
-  );
-}
+```haskell
+-- (^.) - view
+alice ^. name  -- "Alice"
 
-const emailField = field('email');
-const passwordField = field('password');
+-- (.~) - set
+alice & name .~ "Bob"
 
-// Update field value
-function updateFieldValue<K extends keyof FormState['fields']>(
-  key: K,
-  value: string
-): (state: FormState) => FormState {
-  return modify(
-    compose(field(key), prop('value')),
-    () => value
-  );
-}
+-- (%~) - modify
+alice & age %~ (+1)
 
-// Set field error
-function setFieldError<K extends keyof FormState['fields']>(
-  key: K,
-  error: string
-): (state: FormState) => FormState {
-  return modify(
-    field(key),
-    (f) => ({ ...f, error })
-  );
-}
+-- (^?) - preview (Maybe)
+Success 42 ^? _Success  -- Just 42
 
-// Usage
-let formState: FormState = {
-  fields: {
-    email: { value: '' },
-    password: { value: '' }
-  },
-  submitting: false
-};
+-- (^..) - to list
+[1,2,3] ^.. traverse  -- [1,2,3]
 
-formState = updateFieldValue('email', 'test@example.com')(formState);
-formState = setFieldError('email', 'Invalid email')(formState);
+-- (.=) - stateful set (in State monad)
+-- (%=) - stateful modify
+
+-- (^@..) - indexed list
+["a", "b", "c"] ^@.. itraversed  -- [(0,"a"), (1,"b"), (2,"c")]
+```
+
+## Practical Example: Nested Records
+
+```haskell
+data Config = Config
+  { _database :: DatabaseConfig
+  , _server :: ServerConfig
+  } deriving Show
+
+data DatabaseConfig = DatabaseConfig
+  { _host :: String
+  , _port :: Int
+  , _credentials :: Credentials
+  } deriving Show
+
+data ServerConfig = ServerConfig
+  { _serverPort :: Int
+  , _maxConnections :: Int
+  } deriving Show
+
+data Credentials = Credentials
+  { _username :: String
+  , _password :: String
+  } deriving Show
+
+makeLenses ''Config
+makeLenses ''DatabaseConfig
+makeLenses ''ServerConfig
+makeLenses ''Credentials
+
+config :: Config
+config = Config
+  { _database = DatabaseConfig "localhost" 5432
+      (Credentials "admin" "secret")
+  , _server = ServerConfig 8080 100
+  }
+
+-- Deep access
+config ^. database . credentials . username
+-- "admin"
+
+-- Deep update
+config & database . credentials . password .~ "new-secret"
+
+-- Multiple updates
+config
+  & database . port .~ 5433
+  & server . maxConnections .~ 200
+```
+
+## Stateful Updates
+
+Use lenses with State monad:
+
+```haskell
+import Control.Monad.State
+
+updatePerson :: State Person ()
+updatePerson = do
+  age %= (+1)  -- Increment age
+  name %= map toUpper  -- Uppercase name
+  address . city .= "Boston"  -- Set city
+
+-- Run state
+runState updatePerson alice
+-- ((), Person "ALICE" 31 (Address "Main St" "Boston"))
+```
+
+## Folding and Traversing
+
+```haskell
+-- Sum all ages
+company ^. employees . traverse . age . to sum
+-- Sum of all ages
+
+-- Compute with foldOf
+foldOf (employees . traverse . age) company
+-- Sum of ages
+
+-- sumOf shorthand
+sumOf (employees . traverse . age) company
+
+-- Any/all predicates
+anyOf (employees . traverse . age) (> 30) company
+-- True if any employee > 30
+
+allOf (employees . traverse . age) (> 18) company
+-- True if all employees > 18
+```
+
+## Custom Lenses
+
+Define your own lenses:
+
+```haskell
+-- Manual lens creation
+fullName :: Lens' Person String
+fullName = lens getter setter
+  where
+    getter person = _name person
+    setter person newName = person { _name = newName }
+
+-- Lens for computed property
+ageBracket :: Lens' Person String
+ageBracket = lens getter setter
+  where
+    getter person
+      | person ^. age < 18 = "minor"
+      | person ^. age < 65 = "adult"
+      | otherwise = "senior"
+    setter person bracket = case bracket of
+      "minor" -> person & age .~ 16
+      "adult" -> person & age .~ 30
+      "senior" -> person & age .~ 70
+      _ -> person
+```
+
+## Indexed Traversals
+
+Work with indices:
+
+```haskell
+-- Get indexed list
+["a", "b", "c"] ^@.. itraversed
+-- [(0,"a"), (1,"b"), (2,"c")]
+
+-- Modify with index
+["a", "b", "c"] & itraversed %@~ \i c -> show i ++ c
+-- ["0a", "1b", "2c"]
+
+-- Filter by index
+["a", "b", "c", "d"] ^.. itraversed . filtered (\i -> even (fst i))
+-- ["a", "c"]
+```
+
+## Practical: JSON-like Updates
+
+```haskell
+import qualified Data.Map as Map
+
+data Value
+  = VNull
+  | VBool Bool
+  | VInt Int
+  | VString String
+  | VArray [Value]
+  | VObject (Map.Map String Value)
+  deriving Show
+
+makePrisms ''Value
+
+-- Navigate JSON-like structure
+jsonDoc :: Value
+jsonDoc = VObject $ Map.fromList
+  [ ("user", VObject $ Map.fromList
+      [ ("name", VString "Alice")
+      , ("age", VInt 30)
+      , ("tags", VArray [VString "admin", VString "user"])
+      ])
+  ]
+
+-- Access nested value
+jsonDoc ^? _VObject . ix "user" . _VObject . ix "name" . _VString
+-- Just "Alice"
+
+-- Update nested value
+jsonDoc & _VObject . ix "user" . _VObject . ix "age" . _VInt .~ 31
+
+-- Add to array
+jsonDoc & _VObject . ix "user" . _VObject . ix "tags" . _VArray
+  %~ (++ [VString "moderator"])
+```
+
+## Performance Tips
+
+```haskell
+-- Avoid multiple passes
+-- Bad: multiple traversals
+let p1 = person & name %~ map toUpper
+    p2 = p1 & age %~ (+1)
+    p3 = p2 & address . city .~ "NYC"
+in p3
+
+-- Good: single pass
+person
+  & name %~ map toUpper
+  & age %~ (+1)
+  & address . city .~ "NYC"
+
+-- Use strict versions for performance
+person & name %@~ \i s -> ...  -- lazy
+person & name %!~ \s -> ...     -- strict
 ```
 
 ## Key Takeaways
 
-1. **Lenses** - composable getters/setters for product types
-2. **Prisms** - getters/setters for sum types (might not exist)
-3. **Optionals** - combination of lens and prism
-4. **Traversals** - operate on multiple values at once
-5. **Composition** - combine optics to access deeply nested data
+1. **Lenses** - composable getters/setters for fields
+2. **Prisms** - getters/setters for sum type constructors
+3. **Traversals** - operate on multiple values
+4. **Composition** - combine optics to access deeply nested data
+5. **Type safety** - lens operations are fully type-checked
 
-Optics eliminate boilerplate for immutable updates. They're composable, type-safe, and make working with complex data structures elegant.
+Haskell's `lens` library eliminates boilerplate for immutable updates. Optics are composable, type-safe, and make working with complex data structures elegant and maintainable.
