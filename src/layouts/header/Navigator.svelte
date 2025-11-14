@@ -10,24 +10,18 @@ let { locale, route, jotting, about, globe, rss, sun, moon, bars, close }: { loc
 
 const t = i18nit(locale);
 
-// Define home route and navigation routes configuration
-const homeRoute = getRelativeLocaleUrl(locale);
-const routes: { path: string; extra?: string[]; icon: Snippet; label: string }[] = [
+// Define navigation routes configuration
+const routes: { path: string; icon: Snippet; label: string }[] = [
 	{ label: t("navigation.jotting"), path: getRelativeLocaleUrl(locale, "/jotting"), icon: jotting },
 	{ label: t("navigation.about"), path: getRelativeLocaleUrl(locale, "/about"), icon: about }
 ];
 
 /**
  * Check if a route is currently active based on the current route path
- * @param route - The current route path
- * @param home - The home route path
  * @param path - The navigation item path to check against
- * @param extra - Optional array of additional paths that should be considered active
  * @returns True if the route is active, false otherwise
  */
-function active(path: string, extra?: string[]) {
-	if (extra?.some(item => item === route)) return true;
-	if (path === homeRoute) return path === route;
+function active(path: string) {
 	return route.startsWith(path);
 }
 
@@ -65,7 +59,7 @@ onMount(() => {
 		<button onclick={() => (menu = false)} class="sm:hidden">{@render close()}</button>
 
 		{#each routes as item}
-			<a href={item.path} class:location={active(item.path, item.extra)}>
+			<a href={item.path} class:location={active(item.path)}>
 				<span>{@render item.icon()}</span>
 				<p>{item.label}</p>
 			</a>
