@@ -26,7 +26,6 @@ const t = i18nit(locale);
 // Define home route and navigation routes configuration
 const homeRoute = getRelativeLocaleUrl(locale);
 const routes: { path: string; extra?: string[]; icon: Snippet; label: string }[] = [
-	{ label: t("navigation.home"), path: homeRoute, extra: [getRelativeLocaleUrl(locale, "/preface")], icon: home },
 	{ label: t("navigation.jotting"), path: getRelativeLocaleUrl(locale, "/jotting"), icon: jotting },
 	{ label: t("navigation.about"), path: getRelativeLocaleUrl(locale, "/about"), icon: about }
 ];
