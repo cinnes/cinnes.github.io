@@ -12,9 +12,6 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: preview-pr-${{ github.event.pull_request.number }}
-      url: ${{ steps.deploy.outputs.preview_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
