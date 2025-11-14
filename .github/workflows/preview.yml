@@ -7,7 +7,6 @@ on:
 permissions:
   contents: read
   deployments: write
-  pull-requests: write
 
 jobs:
   build-and-deploy:
@@ -101,41 +100,4 @@ jobs:
               deployment_id: '${{ steps.deployment.outputs.deployment_id }}',
               state: 'failure',
               description: 'Preview deployment failed'
-            });
-
-      - name: Comment on PR
-        if: success()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const previewUrl = "${{ steps.deploy.outputs.preview_url }}";
-
-            // Get all comments on the PR
-            const { data: comments } = await github.rest.issues.listComments({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-
-            // Find and delete previous preview comments from this bot
-            for (const comment of comments) {
-              if (
-                comment.user.type === 'Bot' &&
-                comment.body.includes('Preview deployment complete')
-              ) {
-                await github.rest.issues.deleteComment({
-                  comment_id: comment.id,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                });
-              }
-            }
-
-            // Create new preview comment
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `🚀 Preview deployment complete\n\n[View Live Preview](${previewUrl})`
             });
