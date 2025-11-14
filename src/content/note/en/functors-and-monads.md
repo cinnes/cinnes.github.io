@@ -2,528 +2,488 @@
 title: Functors and Monads - Containers for Safer Code
 timestamp: 2025-11-07 00:00:00+00:00
 description: Understand functors and monads to write safer code that handles nulls, errors, and async operations elegantly.
-tags: [fp, functors, monads, maybe]
+tags: [fp, functors, monads, haskell]
 toc: true
 ---
 
 # Functors and Monads - Containers for Safer Code
 
-Functors and monads are patterns for wrapping values in containers that provide a consistent interface for transformation. They help handle null values, errors, and async operations safely and elegantly.
+Functors and monads are fundamental type classes in Haskell that provide a consistent interface for working with values in computational contexts. They enable elegant handling of null values, errors, and effectful computations.
 
 ## Functors - Mappable Containers
 
-A functor is any object that implements a `map` method, allowing you to transform the value inside without unwrapping it.
+A Functor is anything that implements `fmap`, allowing you to transform wrapped values:
 
-### Array as a Functor
+```haskell
+class Functor f where
+  fmap :: (a -> b) -> f a -> f b
 
-```javascript
-// Arrays are functors
-const numbers = [1, 2, 3];
-
-numbers.map(x => x * 2);     // [2, 4, 6]
-numbers.map(x => x.toString()); // ['1', '2', '3']
+-- Infix operator
+(<$>) :: Functor f => (a -> b) -> f a -> f b
+(<$>) = fmap
 ```
 
-### Custom Functor
+### List Functor
 
-```javascript
-class Box {
-  constructor(value) {
-    this.value = value;
-  }
+```haskell
+-- Lists are functors
+instance Functor [] where
+  fmap = map
 
-  map(fn) {
-    return new Box(fn(this.value));
-  }
+fmap (*2) [1, 2, 3, 4]
+-- [2, 4, 6, 8]
 
-  inspect() {
-    return `Box(${this.value})`;
-  }
-}
-
-// Usage
-Box(2)
-  .map(x => x + 1)
-  .map(x => x * 2);  // Box(6)
+(+10) <$> [1, 2, 3]
+-- [11, 12, 13]
 ```
 
-## The Maybe Functor
+### Maybe Functor
 
-Maybe handles null/undefined values safely, preventing null reference errors.
+```haskell
+-- Maybe handles null values safely
+data Maybe a = Nothing | Just a
 
-### Implementation
+instance Functor Maybe where
+  fmap _ Nothing = Nothing
+  fmap f (Just x) = Just (f x)
 
-```javascript
-class Maybe {
-  constructor(value) {
-    this.value = value;
-  }
+-- Usage
+fmap (*2) (Just 5)
+-- Just 10
 
-  static of(value) {
-    return new Maybe(value);
-  }
+fmap (*2) Nothing
+-- Nothing
 
-  isNothing() {
-    return this.value === null || this.value === undefined;
-  }
-
-  map(fn) {
-    return this.isNothing()
-      ? Maybe.of(null)
-      : Maybe.of(fn(this.value));
-  }
-
-  getOrElse(defaultValue) {
-    return this.isNothing() ? defaultValue : this.value;
-  }
-
-  inspect() {
-    return this.isNothing()
-      ? 'Maybe(Nothing)'
-      : `Maybe(${this.value})`;
-  }
-}
+(+1) <$> Just 10
+-- Just 11
 ```
-
-### Usage
-
-```javascript
-// Without Maybe
-function getStreetName(user) {
-  if (user && user.address && user.address.street) {
-    return user.address.street.toUpperCase();
-  }
-  return 'UNKNOWN';
-}
-
-// With Maybe
-function getStreetName(user) {
-  return Maybe.of(user)
-    .map(u => u.address)
-    .map(a => a.street)
-    .map(s => s.toUpperCase())
-    .getOrElse('UNKNOWN');
-}
-
-const user = {
-  address: {
-    street: 'Main St'
-  }
-};
-
-getStreetName(user);  // 'MAIN ST'
-getStreetName(null);  // 'UNKNOWN'
-```
-
-## The Either Functor
-
-Either represents a value that can be one of two types: Right (success) or Left (failure). It's perfect for error handling.
-
-### Implementation
-
-```javascript
-class Left {
-  constructor(value) {
-    this.value = value;
-  }
-
-  map() {
-    return this;  // Doesn't transform, passes error through
-  }
-
-  flatMap() {
-    return this;
-  }
-
-  getOrElse(defaultValue) {
-    return defaultValue;
-  }
-
-  fold(leftFn, rightFn) {
-    return leftFn(this.value);
-  }
-
-  inspect() {
-    return `Left(${this.value})`;
-  }
-}
-
-class Right {
-  constructor(value) {
-    this.value = value;
-  }
-
-  map(fn) {
-    return new Right(fn(this.value));
-  }
-
-  flatMap(fn) {
-    return fn(this.value);
-  }
-
-  getOrElse() {
-    return this.value;
-  }
-
-  fold(leftFn, rightFn) {
-    return rightFn(this.value);
-  }
-
-  inspect() {
-    return `Right(${this.value})`;
-  }
-}
-```
-
-### Usage
-
-```javascript
-function parseJSON(str) {
-  try {
-    return new Right(JSON.parse(str));
-  } catch (error) {
-    return new Left(error.message);
-  }
-}
-
-// Success path
-parseJSON('{"name":"John"}')
-  .map(obj => obj.name)
-  .map(name => name.toUpperCase())
-  .getOrElse('DEFAULT');  // 'JOHN'
-
-// Error path
-parseJSON('invalid json')
-  .map(obj => obj.name)
-  .map(name => name.toUpperCase())
-  .getOrElse('DEFAULT');  // 'DEFAULT'
-```
-
-## Monads - Flattenable Functors
-
-A monad is a functor that also implements `flatMap` (also called `chain` or `bind`). This prevents nested containers.
-
-### The Problem
-
-```javascript
-// Nested containers
-Maybe.of(Maybe.of(2))  // Maybe(Maybe(2))
-```
-
-### The Solution: flatMap
-
-```javascript
-class Maybe {
-  // ... previous implementation
-
-  flatMap(fn) {
-    return this.isNothing()
-      ? Maybe.of(null)
-      : fn(this.value);
-  }
-
-  // Alias for flatMap
-  chain(fn) {
-    return this.flatMap(fn);
-  }
-}
-
-// Usage
-function findUser(id) {
-  return Maybe.of(users.find(u => u.id === id));
-}
-
-function getAddress(user) {
-  return Maybe.of(user.address);
-}
-
-// Without flatMap - nested Maybes
-findUser(1)
-  .map(getAddress);  // Maybe(Maybe(address))
-
-// With flatMap - flat structure
-findUser(1)
-  .flatMap(getAddress);  // Maybe(address)
-```
-
-## Practical Examples
 
 ### Safe Property Access
 
-```javascript
-function prop(key) {
-  return obj => Maybe.of(obj).map(o => o[key]);
-}
-
-function path(keys) {
-  return obj => keys.reduce(
-    (maybe, key) => maybe.flatMap(prop(key)),
-    Maybe.of(obj)
-  );
-}
-
-const user = {
-  profile: {
-    address: {
-      city: 'NYC'
-    }
+```haskell
+data Person = Person
+  { name :: String
+  , age :: Int
+  , address :: Maybe Address
   }
-};
 
-path(['profile', 'address', 'city'])(user)
-  .getOrElse('Unknown');  // 'NYC'
+data Address = Address
+  { street :: String
+  , city :: String
+  }
 
-path(['profile', 'phone'])(user)
-  .getOrElse('Unknown');  // 'Unknown'
+-- Without Maybe: unsafe!
+-- getCity person = city (address person)  -- Crashes if no address
+
+-- With Maybe: safe!
+getCity :: Person -> Maybe String
+getCity person = fmap city (address person)
+
+-- Or using <$>
+getCity' :: Person -> Maybe String
+getCity' person = city <$> address person
+
+alice = Person "Alice" 30 (Just (Address "Main St" "NYC"))
+bob = Person "Bob" 25 Nothing
+
+getCity alice  -- Just "NYC"
+getCity bob    -- Nothing
 ```
 
-### Validation Chain
+## Applicative Functors
 
-```javascript
-function validateEmail(email) {
-  return email.includes('@')
-    ? new Right(email)
-    : new Left('Invalid email');
-}
+Applicatives let you apply wrapped functions to wrapped values:
 
-function validateLength(str) {
-  return str.length >= 3
-    ? new Right(str)
-    : new Left('Too short');
-}
+```haskell
+class Functor f => Applicative f where
+  pure :: a -> f a
+  (<*>) :: f (a -> b) -> f a -> f b
 
-function normalizeEmail(email) {
-  return new Right(email.toLowerCase().trim());
-}
-
-// Chain validations
-function processEmail(email) {
-  return Maybe.of(email)
-    .map(e => e.trim())
-    .flatMap(e =>
-      validateEmail(e)
-        .flatMap(validateLength)
-        .flatMap(normalizeEmail)
-    );
-}
-
-processEmail('  JOHN@EXAMPLE.COM  ')
-  .fold(
-    error => `Error: ${error}`,
-    email => `Valid: ${email}`
-  );
+-- Also provides:
+liftA2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
 ```
 
-### Async Operations
+### Maybe Applicative
 
-```javascript
-class Task {
-  constructor(fork) {
-    this.fork = fork;
-  }
+```haskell
+instance Applicative Maybe where
+  pure = Just
+  Nothing <*> _ = Nothing
+  _ <*> Nothing = Nothing
+  Just f <*> Just x = Just (f x)
 
-  static of(value) {
-    return new Task((reject, resolve) => resolve(value));
-  }
+-- Combine Maybe values
+liftA2 (+) (Just 3) (Just 5)
+-- Just 8
 
-  map(fn) {
-    return new Task((reject, resolve) =>
-      this.fork(reject, value => resolve(fn(value)))
-    );
-  }
+liftA2 (+) (Just 3) Nothing
+-- Nothing
 
-  flatMap(fn) {
-    return new Task((reject, resolve) =>
-      this.fork(reject, value =>
-        fn(value).fork(reject, resolve)
-      )
-    );
-  }
-}
-
-// Usage
-function getUser(id) {
-  return new Task((reject, resolve) => {
-    fetch(`/api/users/${id}`)
-      .then(r => r.json())
-      .then(resolve)
-      .catch(reject);
-  });
-}
-
-function getPosts(userId) {
-  return new Task((reject, resolve) => {
-    fetch(`/api/posts?userId=${userId}`)
-      .then(r => r.json())
-      .then(resolve)
-      .catch(reject);
-  });
-}
-
-// Chain async operations
-getUser(1)
-  .flatMap(user => getPosts(user.id))
-  .map(posts => posts.map(p => p.title))
-  .fork(
-    error => console.error(error),
-    titles => console.log(titles)
-  );
+-- Applicative style
+(+) <$> Just 3 <*> Just 5
+-- Just 8
 ```
 
-## List Monad
+### Validation
 
-```javascript
-class List {
-  constructor(values) {
-    this.values = values;
-  }
+```haskell
+data Person = Person String Int
+  deriving Show
 
-  static of(value) {
-    return new List([value]);
-  }
+-- Validate and construct
+validateName :: String -> Maybe String
+validateName "" = Nothing
+validateName name = Just name
 
-  map(fn) {
-    return new List(this.values.map(fn));
-  }
+validateAge :: Int -> Maybe Int
+validateAge age
+  | age >= 0 && age <= 150 = Just age
+  | otherwise = Nothing
 
-  flatMap(fn) {
-    return new List(
-      this.values.flatMap(v => fn(v).values)
-    );
-  }
-}
+-- Combine validations
+makePerson :: String -> Int -> Maybe Person
+makePerson name age =
+  Person <$> validateName name <*> validateAge age
 
-// Cartesian product using flatMap
-List.of(1)
-  .flatMap(x =>
-    List.of(x * 2).flatMap(y =>
-      List.of([x, y])
-    )
-  );  // List([[1, 2]])
+-- Or with liftA2
+makePerson' :: String -> Int -> Maybe Person
+makePerson' = liftA2 Person `on` validateName `on` validateAge
+  where on = (.)
 
-// Multiple combinations
-new List([1, 2, 3])
-  .flatMap(x =>
-    new List(['a', 'b']).map(y =>
-      [x, y]
-    )
-  );
-// List([[1,'a'], [1,'b'], [2,'a'], [2,'b'], [3,'a'], [3,'b']])
+makePerson "Alice" 30
+-- Just (Person "Alice" 30)
+
+makePerson "" 30
+-- Nothing
+
+makePerson "Bob" 200
+-- Nothing
 ```
 
-## IO Monad (Lazy Effects)
+## Monads - Chainable Computations
 
-```javascript
-class IO {
-  constructor(effect) {
-    this.effect = effect;
-  }
+Monads add `>>=` (bind) for chaining dependent computations:
 
-  static of(value) {
-    return new IO(() => value);
-  }
+```haskell
+class Applicative m => Monad m where
+  return :: a -> m a  -- Same as pure
+  (>>=) :: m a -> (a -> m b) -> m b
 
-  map(fn) {
-    return new IO(() => fn(this.effect()));
-  }
-
-  flatMap(fn) {
-    return new IO(() => fn(this.effect()).effect());
-  }
-
-  run() {
-    return this.effect();
-  }
-}
-
-// Lazy console.log
-const log = msg => new IO(() => console.log(msg));
-
-// Lazy random
-const random = () => new IO(() => Math.random());
-
-// Compose effects without executing
-const program = random()
-  .map(n => n * 10)
-  .flatMap(n => log(`Random: ${n}`))
-  .map(() => 'done');
-
-// Execute when ready
-program.run();  // Logs: "Random: 7.234..."
+-- Also:
+(>>) :: m a -> m b -> m b  -- Sequence, ignore first result
 ```
 
-## Real-World: API Client
+### Maybe Monad
 
-```javascript
-class ApiResult {
-  constructor(fork) {
-    this.fork = fork;
-  }
+```haskell
+instance Monad Maybe where
+  return = Just
+  Nothing >>= _ = Nothing
+  Just x >>= f = f x
 
-  static success(value) {
-    return new ApiResult((onError, onSuccess) => onSuccess(value));
-  }
+-- Chain lookups
+type UserId = Int
+type User = String
 
-  static failure(error) {
-    return new ApiResult((onError, onSuccess) => onError(error));
-  }
+findUser :: UserId -> Maybe User
+findUser 1 = Just "Alice"
+findUser 2 = Just "Bob"
+findUser _ = Nothing
 
-  static fromPromise(promise) {
-    return new ApiResult((onError, onSuccess) =>
-      promise.then(onSuccess).catch(onError)
-    );
-  }
+findUserAddress :: User -> Maybe Address
+findUserAddress "Alice" = Just (Address "Main St" "NYC")
+findUserAddress "Bob" = Nothing
+findUserAddress _ = Nothing
 
-  map(fn) {
-    return new ApiResult((onError, onSuccess) =>
-      this.fork(onError, value => onSuccess(fn(value)))
-    );
-  }
+-- Chained lookup
+getUserCity :: UserId -> Maybe String
+getUserCity userId =
+  findUser userId >>= \user ->
+  findUserAddress user >>= \addr ->
+  return (city addr)
 
-  flatMap(fn) {
-    return new ApiResult((onError, onSuccess) =>
-      this.fork(onError, value =>
-        fn(value).fork(onError, onSuccess)
-      )
-    );
-  }
+-- Or with do-notation
+getUserCity' :: UserId -> Maybe String
+getUserCity' userId = do
+  user <- findUser userId
+  addr <- findUserAddress user
+  return (city addr)
 
-  mapError(fn) {
-    return new ApiResult((onError, onSuccess) =>
-      this.fork(error => onError(fn(error)), onSuccess)
-    );
-  }
-}
+getUserCity 1  -- Just "NYC"
+getUserCity 2  -- Nothing (Bob has no address)
+getUserCity 3  -- Nothing (user not found)
+```
 
-// Usage
-function fetchUser(id) {
-  return ApiResult.fromPromise(
-    fetch(`/api/users/${id}`).then(r => r.json())
-  );
-}
+## Either for Error Handling
 
-function fetchPosts(userId) {
-  return ApiResult.fromPromise(
-    fetch(`/api/posts?userId=${userId}`).then(r => r.json())
-  );
-}
+Either carries error information:
 
-fetchUser(1)
-  .flatMap(user => fetchPosts(user.id))
-  .map(posts => posts.map(p => p.title))
-  .mapError(error => `Failed: ${error.message}`)
-  .fork(
-    error => showError(error),
-    titles => showTitles(titles)
-  );
+```haskell
+data Either e a = Left e | Right a
+
+instance Functor (Either e) where
+  fmap _ (Left e) = Left e
+  fmap f (Right x) = Right (f x)
+
+instance Applicative (Either e) where
+  pure = Right
+  Left e <*> _ = Left e
+  Right f <*> Right x = Right (f x)
+  _ <*> Left e = Left e
+
+instance Monad (Either e) where
+  Left e >>= _ = Left e
+  Right x >>= f = f x
+```
+
+### Error Handling Example
+
+```haskell
+type Error = String
+
+validateEmail :: String -> Either Error String
+validateEmail email
+  | '@' `elem` email = Right email
+  | otherwise = Left "Invalid email: must contain @"
+
+validateAge' :: Int -> Either Error Int
+validateAge' age
+  | age >= 18 = Right age
+  | otherwise = Left "Invalid age: must be 18+"
+
+-- Chain validations
+processUser :: String -> Int -> Either Error (String, Int)
+processUser email age = do
+  validEmail <- validateEmail email
+  validAge <- validateAge' age
+  return (validEmail, validAge)
+
+processUser "alice@example.com" 30
+-- Right ("alice@example.com", 30)
+
+processUser "invalid" 30
+-- Left "Invalid email: must contain @"
+
+processUser "alice@example.com" 15
+-- Left "Invalid age: must be 18+"
+```
+
+## List Monad - Non-Determinism
+
+Lists model multiple possible values:
+
+```haskell
+instance Monad [] where
+  return x = [x]
+  xs >>= f = concat (map f xs)  -- Or: concatMap f xs
+
+-- Generate all pairs
+pairs :: [Int] -> [Char] -> [(Int, Char)]
+pairs nums chars = do
+  n <- nums
+  c <- chars
+  return (n, c)
+
+pairs [1, 2] ['a', 'b']
+-- [(1,'a'), (1,'b'), (2,'a'), (2,'b')]
+
+-- Pythagorean triples
+pythTriples :: Int -> [(Int, Int, Int)]
+pythTriples n = do
+  a <- [1..n]
+  b <- [a..n]
+  c <- [b..n]
+  guard (a*a + b*b == c*c)
+  return (a, b, c)
+
+pythTriples 15
+-- [(3,4,5), (5,12,13), (6,8,10), (9,12,15)]
+```
+
+## IO Monad
+
+IO sequences effectful operations:
+
+```haskell
+-- IO is an abstract type
+-- Can only escape via running main or unsafePerformIO
+
+greet :: IO ()
+greet = do
+  putStrLn "What's your name?"
+  name <- getLine
+  putStrLn $ "Hello, " ++ name ++ "!"
+
+-- Reading a file
+readAndProcess :: FilePath -> IO String
+readAndProcess path = do
+  contents <- readFile path
+  let processed = map toUpper contents
+  return processed
+
+-- Chaining I/O operations
+copyFile' :: FilePath -> FilePath -> IO ()
+copyFile' src dest = do
+  contents <- readFile src
+  writeFile dest contents
+  putStrLn $ "Copied " ++ src ++ " to " ++ dest
+```
+
+## Monad Utilities
+
+### mapM and sequence
+
+```haskell
+-- mapM :: Monad m => (a -> m b) -> [a] -> m [b]
+-- sequence :: Monad m => [m a] -> m [a]
+
+-- Print and collect
+printItem :: Int -> IO Int
+printItem x = do
+  print x
+  return (x * 2)
+
+mapM printItem [1, 2, 3]
+-- Prints: 1, 2, 3
+-- Returns: IO [2, 4, 6]
+
+-- Sequence multiple I/O actions
+actions :: [IO ()]
+actions = [putStrLn "First", putStrLn "Second", putStrLn "Third"]
+
+sequence_ actions
+-- Prints all three lines
+```
+
+### filterM
+
+```haskell
+-- filterM :: Monad m => (a -> m Bool) -> [a] -> m [a]
+
+-- Get all subsets using list monad
+powerset :: [a] -> [[a]]
+powerset = filterM (\_ -> [True, False])
+
+powerset [1, 2, 3]
+-- [[1,2,3], [1,2], [1,3], [1], [2,3], [2], [3], []]
+```
+
+## do-Notation Sugar
+
+do-notation is syntactic sugar for `>>=`:
+
+```haskell
+-- This do-block:
+do
+  x <- action1
+  y <- action2 x
+  return (x + y)
+
+-- Desugars to:
+action1 >>= \x ->
+  action2 x >>= \y ->
+    return (x + y)
+
+-- Pattern matching:
+do
+  Just x <- maybeAction
+  return x
+
+-- Desugars to:
+maybeAction >>= \(Just x) -> return x
+```
+
+## Monad Laws
+
+All monad instances must satisfy:
+
+```haskell
+-- Left identity
+return a >>= f  ≡  f a
+
+-- Right identity
+m >>= return  ≡  m
+
+-- Associativity
+(m >>= f) >>= g  ≡  m >>= (\x -> f x >>= g)
+```
+
+These laws ensure monads behave predictably.
+
+## Real-World Example
+
+```haskell
+import Data.Maybe (fromMaybe)
+import Control.Monad (guard)
+
+data User = User
+  { userId :: Int
+  , userName :: String
+  , userEmail :: String
+  } deriving Show
+
+data Post = Post
+  { postId :: Int
+  , postAuthorId :: Int
+  , postTitle :: String
+  } deriving Show
+
+-- Database simulation
+users :: [User]
+users =
+  [ User 1 "Alice" "alice@example.com"
+  , User 2 "Bob" "bob@example.com"
+  ]
+
+posts :: [Post]
+posts =
+  [ Post 1 1 "First Post"
+  , Post 2 1 "Second Post"
+  , Post 3 2 "Bob's Post"
+  ]
+
+-- Lookup functions
+findUserById :: Int -> Maybe User
+findUserById uid = find (\u -> userId u == uid) users
+
+findPostsByAuthor :: Int -> [Post]
+findPostsByAuthor aid = filter (\p -> postAuthorId p == aid) posts
+
+-- Get user's posts
+getUserPosts :: Int -> Maybe [Post]
+getUserPosts uid = do
+  user <- findUserById uid
+  return (findPostsByAuthor (userId user))
+
+-- With error handling
+type Result a = Either String a
+
+findUserById' :: Int -> Result User
+findUserById' uid =
+  case find (\u -> userId u == uid) users of
+    Nothing -> Left $ "User not found: " ++ show uid
+    Just user -> Right user
+
+getUserPosts' :: Int -> Result [Post]
+getUserPosts' uid = do
+  user <- findUserById' uid
+  Right (findPostsByAuthor (userId user))
+
+-- Usage
+getUserPosts 1
+-- Just [Post 1 1 "First Post", Post 2 1 "Second Post"]
+
+getUserPosts' 99
+-- Left "User not found: 99"
 ```
 
 ## Key Takeaways
 
-1. **Functors provide map** - transform values without unwrapping
-2. **Maybe handles nulls** - eliminates null reference errors
-3. **Either handles errors** - functional error handling
-4. **Monads provide flatMap** - prevents nesting, enables chaining
-5. **Compose effects** - build complex operations from simple ones
+1. **Functor** - map over wrapped values with `fmap` / `<$>`
+2. **Applicative** - apply wrapped functions with `<*>`
+3. **Monad** - chain dependent computations with `>>=`
+4. **Maybe** - handle null values safely
+5. **Either** - carry error information
+6. **IO** - sequence effects in a controlled way
 
-Functors and monads may seem abstract, but they solve real problems: null safety, error handling, and async composition. Start with Maybe for null handling, then explore other patterns as needed.
+Functors and monads provide a unified interface for working with computational contexts. They're the foundation of principled effectful programming in Haskell.
