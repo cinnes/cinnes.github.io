@@ -1,463 +1,415 @@
 ---
 title: Higher-Kinded Types - Abstracting Over Type Constructors
 timestamp: 2025-11-14 00:00:00+00:00
-description: Explore higher-kinded types to write generic abstractions that work across different container types like arrays, promises, and custom monads.
-tags: [fp, hkt, types, advanced]
+description: Explore higher-kinded types to write generic abstractions that work across different container types through type classes and polymorphism.
+tags: [fp, hkt, types, haskell]
 toc: true
 ---
 
 # Higher-Kinded Types - Abstracting Over Type Constructors
 
-Higher-kinded types (HKTs) allow you to abstract over type constructors—types that themselves take type parameters. While TypeScript doesn't natively support HKTs, we can simulate them to write highly generic, reusable code.
+Higher-kinded types (HKTs) allow you to abstract over type constructors—types that themselves take type parameters. In Haskell, HKTs are native and enable powerful generic programming through type classes.
 
-## The Problem
+## Kinds - Types of Types
 
-Consider writing a generic `map` function that works for any container:
+Every type has a kind, which describes its "type":
 
-```typescript
-// Works for arrays
-function mapArray<A, B>(fa: A[], f: (a: A) => B): B[] {
-  return fa.map(f);
-}
+```haskell
+-- :kind or :k in GHCi shows the kind
 
-// Works for promises
-function mapPromise<A, B>(fa: Promise<A>, f: (a: A) => B): Promise<B> {
-  return fa.then(f);
-}
+:k Int
+-- Int :: *
+-- * means a concrete type
 
-// Works for Maybe
-function mapMaybe<A, B>(fa: Maybe<A>, f: (a: A) => B): Maybe<B> {
-  return fa.map(f);
-}
+:k Maybe
+-- Maybe :: * -> *
+-- Takes a type, returns a type
+
+:k Either
+-- Either :: * -> * -> *
+-- Takes two types, returns a type
+
+:k []
+-- [] :: * -> *
+-- List type constructor
+
+:k (,)
+-- (,) :: * -> * -> *
+-- Tuple type constructor
 ```
 
-We're duplicating the pattern. What we want is:
+## Type Constructors as Parameters
 
-```typescript
-function map<F, A, B>(fa: F<A>, f: (a: A) => B): F<B>
+HKTs let you parameterize over type constructors:
+
+```haskell
+-- Functor abstracts over * -> * types
+class Functor f where
+  fmap :: (a -> b) -> f a -> f b
+
+-- f has kind * -> *
+-- f could be Maybe, [], Either e, IO, etc.
+
+-- Different instances
+instance Functor Maybe where
+  fmap _ Nothing = Nothing
+  fmap g (Just x) = Just (g x)
+
+instance Functor [] where
+  fmap = map
+
+instance Functor (Either e) where
+  fmap _ (Left e) = Left e
+  fmap g (Right x) = Right (g x)
 ```
 
-But TypeScript doesn't support `F<A>` where `F` is a variable type constructor. This is where HKT encoding comes in.
+## Generic Functions
 
-## HKT Encoding in TypeScript
+Write functions that work for any `Functor`:
 
-We can simulate HKTs using a witness pattern:
+```haskell
+-- Works for Maybe, [], Either, IO, etc.
+doubleInside :: (Functor f, Num a) => f a -> f a
+doubleInside = fmap (*2)
 
-```typescript
-// URI registry for type constructors
-interface URItoKind<A> {
-  Array: A[];
-  Promise: Promise<A>;
-  Maybe: Maybe<A>;
-}
+doubleInside (Just 5)
+-- Just 10
 
-// HKT type that maps URI to its kind
-type Kind<F extends keyof URItoKind<any>, A> = URItoKind<A>[F];
+doubleInside [1, 2, 3]
+-- [2, 4, 6]
 
-// Now we can write generic abstractions
-interface Functor<F extends keyof URItoKind<any>> {
-  map<A, B>(fa: Kind<F, A>, f: (a: A) => B): Kind<F, B>;
-}
+doubleInside (Right 10 :: Either String Int)
+-- Right 20
 ```
 
-## Implementing Functor Instances
+## Type Class Hierarchy
 
-```typescript
-// Array functor instance
-const ArrayFunctor: Functor<'Array'> = {
-  map: (fa, f) => fa.map(f)
-};
+HKTs enable type class hierarchies:
 
-// Promise functor instance
-const PromiseFunctor: Functor<'Promise'> = {
-  map: (fa, f) => fa.then(f)
-};
+```haskell
+-- Functor -> Applicative -> Monad
+class Functor f where
+  fmap :: (a -> b) -> f a -> f b
 
-// Maybe type
-class Maybe<A> {
-  constructor(private value: A | null) {}
+class Functor f => Applicative f where
+  pure :: a -> f a
+  (<*>) :: f (a -> b) -> f a -> f b
 
-  static of<A>(value: A | null): Maybe<A> {
-    return new Maybe(value);
-  }
+class Applicative m => Monad m where
+  return :: a -> m a
+  (>>=) :: m a -> (a -> m b) -> m b
 
-  isNothing(): boolean {
-    return this.value === null;
-  }
+-- Generic function works for all Applicatives
+liftA2Generic :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
+liftA2Generic g fa fb = g <$> fa <*> fb
 
-  map<B>(f: (a: A) => B): Maybe<B> {
-    return this.isNothing()
-      ? Maybe.of<B>(null)
-      : Maybe.of(f(this.value!));
-  }
-}
+liftA2Generic (+) (Just 3) (Just 5)
+-- Just 8
 
-// Register Maybe in URI registry
-interface URItoKind<A> {
-  Array: A[];
-  Promise: Promise<A>;
-  Maybe: Maybe<A>;
-}
-
-// Maybe functor instance
-const MaybeFunctor: Functor<'Maybe'> = {
-  map: (fa, f) => fa.map(f)
-};
+liftA2Generic (+) [1, 2] [10, 20]
+-- [11, 21, 12, 22]
 ```
 
-## Generic Functions Over HKTs
+## Traversable - Multi-HKT Classes
 
-Now we can write truly generic functions:
+Some type classes abstract over multiple HKTs:
 
-```typescript
-// Generic map that works for any functor
-function genericMap<F extends keyof URItoKind<any>, A, B>(
-  F: Functor<F>,
-  fa: Kind<F, A>,
-  f: (a: A) => B
-): Kind<F, B> {
-  return F.map(fa, f);
-}
+```haskell
+class (Functor t, Foldable t) => Traversable t where
+  traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
+  sequenceA :: Applicative f => t (f a) -> f (t a)
 
-// Usage
-const nums = [1, 2, 3];
-const doubled = genericMap(ArrayFunctor, nums, x => x * 2);
-// [2, 4, 6]
+-- t has kind * -> *  (the structure)
+-- f has kind * -> *  (the effect)
 
-const promise = Promise.resolve(5);
-const result = genericMap(PromiseFunctor, promise, x => x * 2);
-// Promise<10>
+-- Example: validate all elements
+validateAll :: [Maybe Int] -> Maybe [Int]
+validateAll = sequenceA
 
-const maybe = Maybe.of(10);
-const maybeResult = genericMap(MaybeFunctor, maybe, x => x * 2);
-// Maybe(20)
+validateAll [Just 1, Just 2, Just 3]
+-- Just [1, 2, 3]
+
+validateAll [Just 1, Nothing, Just 3]
+-- Nothing
 ```
 
-## Applicative HKT
+## Custom HKT Type Classes
 
-Let's extend to Applicative, which adds `pure` and `ap`:
+Define your own abstractions:
 
-```typescript
-interface Applicative<F extends keyof URItoKind<any>> extends Functor<F> {
-  pure<A>(a: A): Kind<F, A>;
-  ap<A, B>(fab: Kind<F, (a: A) => B>, fa: Kind<F, A>): Kind<F, B>;
-}
+```haskell
+-- Bifunctor - two type parameters
+class Bifunctor p where
+  bimap :: (a -> c) -> (b -> d) -> p a b -> p c d
+  first :: (a -> c) -> p a b -> p c b
+  second :: (b -> d) -> p a b -> p a d
 
-// Array applicative
-const ArrayApplicative: Applicative<'Array'> = {
-  ...ArrayFunctor,
-  pure: <A>(a: A) => [a],
-  ap: <A, B>(fab: ((a: A) => B)[], fa: A[]): B[] =>
-    fab.flatMap(f => fa.map(f))
-};
+instance Bifunctor Either where
+  bimap f _ (Left x) = Left (f x)
+  bimap _ g (Right y) = Right (g y)
+  first f = bimap f id
+  second g = bimap id g
 
-// Promise applicative
-const PromiseApplicative: Applicative<'Promise'> = {
-  ...PromiseFunctor,
-  pure: <A>(a: A) => Promise.resolve(a),
-  ap: async <A, B>(
-    fab: Promise<(a: A) => B>,
-    fa: Promise<A>
-  ): Promise<B> => {
-    const [f, a] = await Promise.all([fab, fa]);
-    return f(a);
-  }
-};
+instance Bifunctor (,) where
+  bimap f g (x, y) = (f x, g y)
+  first f (x, y) = (f x, y)
+  second g (x, y) = (x, g y)
 
-// Maybe applicative
-const MaybeApplicative: Applicative<'Maybe'> = {
-  ...MaybeFunctor,
-  pure: <A>(a: A) => Maybe.of(a),
-  ap: <A, B>(fab: Maybe<(a: A) => B>, fa: Maybe<A>): Maybe<B> => {
-    if (fab.isNothing() || fa.isNothing()) {
-      return Maybe.of<B>(null);
-    }
-    return fa.map((fab as any).value);
-  }
-};
+-- Usage
+first (+1) (Left 5)
+-- Left 6
+
+second (*2) (Right 10)
+-- Right 20
+
+bimap (+1) (*2) (3, 5)
+-- (4, 10)
 ```
 
-## Monad HKT
+## Monad Transformers
 
-Monads add `flatMap`:
+Stack effects using higher-kinded types:
 
-```typescript
-interface Monad<F extends keyof URItoKind<any>> extends Applicative<F> {
-  flatMap<A, B>(fa: Kind<F, A>, f: (a: A) => Kind<F, B>): Kind<F, B>;
-}
+```haskell
+-- MaybeT transformer
+newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
 
-// Array monad
-const ArrayMonad: Monad<'Array'> = {
-  ...ArrayApplicative,
-  flatMap: <A, B>(fa: A[], f: (a: A) => B[]): B[] =>
-    fa.flatMap(f)
-};
+-- m has kind * -> *
+-- MaybeT m has kind * -> *
+-- MaybeT m a has kind *
 
-// Promise monad
-const PromiseMonad: Monad<'Promise'> = {
-  ...PromiseApplicative,
-  flatMap: <A, B>(fa: Promise<A>, f: (a: A) => Promise<B>): Promise<B> =>
-    fa.then(f)
-};
+instance Monad m => Functor (MaybeT m) where
+  fmap f (MaybeT ma) = MaybeT $ do
+    maybeA <- ma
+    return (fmap f maybeA)
 
-// Maybe monad
-const MaybeMonad: Monad<'Maybe'> = {
-  ...MaybeApplicative,
-  flatMap: <A, B>(fa: Maybe<A>, f: (a: A) => Maybe<B>): Maybe<B> => {
-    if (fa.isNothing()) return Maybe.of<B>(null);
-    return f((fa as any).value);
-  }
-};
+instance Monad m => Applicative (MaybeT m) where
+  pure = MaybeT . return . Just
+  (MaybeT mf) <*> (MaybeT ma) = MaybeT $ do
+    maybeF <- mf
+    maybeA <- ma
+    return (maybeF <*> maybeA)
+
+instance Monad m => Monad (MaybeT m) where
+  (MaybeT ma) >>= f = MaybeT $ do
+    maybeA <- ma
+    case maybeA of
+      Nothing -> return Nothing
+      Just a -> runMaybeT (f a)
+
+-- Combine IO and Maybe
+type IOMaybe = MaybeT IO
+
+askUser :: String -> IOMaybe String
+askUser prompt = MaybeT $ do
+  putStrLn prompt
+  input <- getLine
+  return $ if null input then Nothing else Just input
+
+program :: IOMaybe ()
+program = do
+  name <- askUser "Name:"
+  email <- askUser "Email:"
+  lift $ putStrLn $ "Hello, " ++ name ++ " (" ++ email ++ ")"
 ```
 
-## Practical Example: Validation
+## Higher-Kinded Data
 
-```typescript
-// Either type for error handling
-class Either<E, A> {
-  constructor(
-    private readonly value: E | A,
-    private readonly isLeft: boolean
-  ) {}
+Use HKTs for generic data structures:
 
-  static left<E, A>(e: E): Either<E, A> {
-    return new Either(e, true);
+```haskell
+-- Generic user type parameterized by effect
+data User f = User
+  { userId :: f Int
+  , userName :: f String
+  , userEmail :: f String
   }
 
-  static right<E, A>(a: A): Either<E, A> {
-    return new Either(a, false);
+-- Pure user
+type PureUser = User Identity
+
+-- Partial user (for forms)
+type PartialUser = User Maybe
+
+-- Validated user (with validation)
+type ValidatedUser = User (Either String)
+
+-- Example
+partial User :: PartialUser
+partialUser = User
+  { userId = Just 1
+  , userName = Just "Alice"
+  , userEmail = Nothing  -- Not yet filled
   }
 
-  fold<B>(onLeft: (e: E) => B, onRight: (a: A) => B): B {
-    return this.isLeft ? onLeft(this.value as E) : onRight(this.value as A);
+-- Validation
+validateUser :: PartialUser -> ValidatedUser
+validateUser user = User
+  { userId = maybe (Left "Missing ID") Right (userId user)
+  , userName = maybe (Left "Missing name") Right (userName user)
+  , userEmail = maybe (Left "Missing email") Right (userEmail user)
   }
-}
-
-// Register Either (need to handle two type params)
-interface URItoKind2<E, A> {
-  Either: Either<E, A>;
-}
-
-type Kind2<F extends keyof URItoKind2<any, any>, E, A> = URItoKind2<E, A>[F];
-
-// Either monad (fixed error type)
-interface Monad2<F extends keyof URItoKind2<any, any>, E> {
-  pure<A>(a: A): Kind2<F, E, A>;
-  map<A, B>(fa: Kind2<F, E, A>, f: (a: A) => B): Kind2<F, E, B>;
-  flatMap<A, B>(
-    fa: Kind2<F, E, A>,
-    f: (a: A) => Kind2<F, E, B>
-  ): Kind2<F, E, B>;
-}
-
-const EitherMonad = <E>(): Monad2<'Either', E> => ({
-  pure: <A>(a: A) => Either.right<E, A>(a),
-
-  map: <A, B>(fa: Either<E, A>, f: (a: A) => B): Either<E, B> =>
-    fa.fold(
-      e => Either.left(e),
-      a => Either.right(f(a))
-    ),
-
-  flatMap: <A, B>(
-    fa: Either<E, A>,
-    f: (a: A) => Either<E, B>
-  ): Either<E, B> =>
-    fa.fold(
-      e => Either.left(e),
-      a => f(a)
-    )
-});
-
-// Validation functions
-type ValidationError = string;
-
-function validateEmail(email: string): Either<ValidationError, string> {
-  return email.includes('@')
-    ? Either.right(email)
-    : Either.left('Invalid email');
-}
-
-function validateAge(age: number): Either<ValidationError, number> {
-  return age >= 18
-    ? Either.right(age)
-    : Either.left('Must be 18 or older');
-}
-
-// Generic validation pipeline
-function validate<E, A, B, C>(
-  M: Monad2<'Either', E>,
-  fa: Kind2<'Either', E, A>,
-  f: (a: A) => Kind2<'Either', E, B>
-): Kind2<'Either', E, B> {
-  return M.flatMap(fa, f);
-}
-
-// Usage
-const emailResult = validateEmail('test@example.com');
-const validationMonad = EitherMonad<ValidationError>();
-
-const result = validationMonad.flatMap(
-  emailResult,
-  email => Either.right(email.toLowerCase())
-);
 ```
 
-## Traversable HKT
+## Rank-N Types
 
-Traversable lets us flip container nesting:
+HKTs enable rank-2 polymorphism:
 
-```typescript
-interface Traversable<T extends keyof URItoKind<any>> extends Functor<T> {
-  traverse<F extends keyof URItoKind<any>, A, B>(
-    A: Applicative<F>,
-    ta: Kind<T, A>,
-    f: (a: A) => Kind<F, B>
-  ): Kind<F, Kind<T, B>>;
-}
+```haskell
+{-# LANGUAGE RankNTypes #-}
 
-// Array traversable
-const ArrayTraversable: Traversable<'Array'> = {
-  ...ArrayFunctor,
+-- Function that takes a polymorphic function
+runBoth :: (forall a. f a -> a) -> f Int -> f String -> (Int, String)
+runBoth extract fi fs = (extract fi, extract fs)
 
-  traverse: <F extends keyof URItoKind<any>, A, B>(
-    A: Applicative<F>,
-    ta: A[],
-    f: (a: A) => Kind<F, B>
-  ): Kind<F, B[]> => {
-    if (ta.length === 0) {
-      return A.pure([]);
-    }
+-- Extract from Identity
+getId :: forall a. Identity a -> a
+getId (Identity x) = x
 
-    const [head, ...tail] = ta;
-    const fb = f(head);
-    const fbs = ArrayTraversable.traverse(A, tail, f);
+runBoth getId (Identity 42) (Identity "hello")
+-- (42, "hello")
 
-    return A.ap(
-      A.map(fb, (b: B) => (bs: B[]) => [b, ...bs]),
-      fbs
-    );
-  }
-};
-
-// Example: validate array of values
-function validateAll(
-  emails: string[]
-): Either<ValidationError, string[]> {
-  const M = EitherMonad<ValidationError>();
-
-  return ArrayTraversable.traverse(
-    {
-      ...M,
-      ap: (fab, fa) => M.flatMap(fab, f => M.map(fa, a => f(a)))
-    } as any,
-    emails,
-    validateEmail
-  ) as any;
-}
-
-const emails = ['a@b.com', 'test@example.com'];
-const validated = validateAll(emails);
-// Right(['a@b.com', 'test@example.com'])
-
-const invalidEmails = ['a@b.com', 'invalid'];
-const failed = validateAll(invalidEmails);
-// Left('Invalid email')
+-- Generic ST computation
+runST :: (forall s. ST s a) -> a
+-- s is locally quantified - prevents escape
 ```
 
-## Real-World: Effect System
+## Data Kinds and Kind Polymorphism
 
-```typescript
-// IO effect type
-class IO<A> {
-  constructor(private readonly effect: () => A) {}
+Use types as kinds:
 
-  static of<A>(a: A): IO<A> {
-    return new IO(() => a);
-  }
+```haskell
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs #-}
 
-  run(): A {
-    return this.effect();
-  }
+-- Promote data to kind level
+data Nat = Zero | Succ Nat
 
-  map<B>(f: (a: A) => B): IO<B> {
-    return new IO(() => f(this.effect()));
-  }
+-- Type-level natural numbers
+data Vec (n :: Nat) a where
+  VNil :: Vec 'Zero a
+  VCons :: a -> Vec n a -> Vec ('Succ n) a
 
-  flatMap<B>(f: (a: A) => IO<B>): IO<B> {
-    return new IO(() => f(this.effect()).run());
-  }
-}
+-- Length-indexed list
+v1 :: Vec ('Succ 'Zero) Int
+v1 = VCons 1 VNil
 
-// Register IO
-interface URItoKind<A> {
-  Array: A[];
-  Promise: Promise<A>;
-  Maybe: Maybe<A>;
-  IO: IO<A>;
-}
+v2 :: Vec ('Succ ('Succ 'Zero)) Int
+v2 = VCons 1 (VCons 2 VNil)
 
-// IO monad instance
-const IOMonad: Monad<'IO'> = {
-  pure: <A>(a: A) => IO.of(a),
+-- Type-safe head (can't call on empty!)
+vhead :: Vec ('Succ n) a -> a
+vhead (VCons x _) = x
+```
 
-  map: <A, B>(fa: IO<A>, f: (a: A) => B): IO<B> =>
-    fa.map(f),
+## Type Families
 
-  ap: <A, B>(fab: IO<(a: A) => B>, fa: IO<A>): IO<B> =>
-    fab.flatMap(f => fa.map(f)),
+Type-level functions using HKTs:
 
-  flatMap: <A, B>(fa: IO<A>, f: (a: A) => IO<B>): IO<B> =>
-    fa.flatMap(f)
-};
+```haskell
+{-# LANGUAGE TypeFamilies #-}
 
-// Generic effect composition
-function sequence<F extends keyof URItoKind<any>, A>(
-  M: Monad<F>,
-  effects: Kind<F, A>[]
-): Kind<F, A[]> {
-  if (effects.length === 0) {
-    return M.pure([]);
-  }
+-- Associated type families
+class Collection c where
+  type Elem c
+  empty :: c
+  insert :: Elem c -> c -> c
+  toList :: c -> [Elem c]
 
-  const [head, ...tail] = effects;
+instance Collection [a] where
+  type Elem [a] = a
+  empty = []
+  insert = (:)
+  toList = id
 
-  return M.flatMap(head, a =>
-    M.map(sequence(M, tail), as => [a, ...as])
-  );
-}
+instance Ord a => Collection (Set a) where
+  type Elem (Set a) = a
+  empty = Set.empty
+  insert = Set.insert
+  toList = Set.toList
 
-// Example: compose IO effects
-const readFile = (path: string): IO<string> =>
-  new IO(() => {
-    // Imagine actual file reading
-    return `contents of ${path}`;
-  });
+-- Generic function
+singleton :: Collection c => Elem c -> c
+singleton x = insert x empty
+```
 
-const writeFile = (path: string, content: string): IO<void> =>
-  new IO(() => {
-    console.log(`Writing to ${path}: ${content}`);
-  });
+## Free Constructions
 
-// Compose effects
-const program = IOMonad.flatMap(
-  readFile('input.txt'),
-  content => IOMonad.flatMap(
-    writeFile('output.txt', content.toUpperCase()),
-    () => IO.of(content)
-  )
-);
+Build free structures over HKTs:
 
-// Effects are lazy until run
-program.run();
+```haskell
+-- Free monad
+data Free f a
+  = Pure a
+  | Free (f (Free f a))
+
+instance Functor f => Functor (Free f) where
+  fmap g (Pure x) = Pure (g x)
+  fmap g (Free fa) = Free (fmap (fmap g) fa)
+
+instance Functor f => Applicative (Free f) where
+  pure = Pure
+  Pure f <*> Pure x = Pure (f x)
+  Pure f <*> Free fx = Free (fmap (fmap f) fx)
+  Free ff <*> fx = Free (fmap (<*> fx) ff)
+
+instance Functor f => Monad (Free f) where
+  Pure x >>= f = f x
+  Free fx >>= f = Free (fmap (>>= f) fx)
+
+-- Lift functor into free monad
+liftF :: Functor f => f a -> Free f a
+liftF fa = Free (fmap Pure fa)
+```
+
+## Practical Example: Generic Effects
+
+```haskell
+-- Generic effect interface
+class Monad m => MonadFileSystem m where
+  readFile' :: FilePath -> m String
+  writeFile' :: FilePath -> String -> m ()
+
+class Monad m => MonadHTTP m where
+  httpGet :: String -> m String
+  httpPost :: String -> String -> m String
+
+-- Generic business logic
+processData :: (MonadFileSystem m, MonadHTTP m) => m ()
+processData = do
+  config <- readFile' "config.json"
+  result <- httpPost "https://api.example.com" config
+  writeFile' "result.txt" result
+
+-- Different implementations
+instance MonadFileSystem IO where
+  readFile' = Prelude.readFile
+  writeFile' = Prelude.writeFile
+
+instance MonadHTTP IO where
+  httpGet url = -- actual HTTP call
+  httpPost url body = -- actual HTTP call
+
+-- Test implementation
+data MockIO a = MockIO { runMock :: Map String String -> (a, Map String String) }
+
+instance Monad MockIO where
+  -- ...
+
+instance MonadFileSystem MockIO where
+  readFile' path = MockIO $ \store ->
+    (fromMaybe "" (Map.lookup path store), store)
+  writeFile' path contents = MockIO $ \store ->
+    ((), Map.insert path contents store)
 ```
 
 ## Key Takeaways
 
-1. **HKTs abstract over type constructors** - write code generic over `F<_>`
-2. **TypeScript simulation** - use URI registry pattern for HKT encoding
-3. **Type classes** - Functor, Applicative, Monad become reusable interfaces
-4. **Generic abstractions** - write functions that work across any container
-5. **Effect systems** - compose and sequence effects generically
+1. **HKTs are native** - no encoding needed in Haskell
+2. **Type classes** - abstract over type constructors
+3. **Kind system** - track arity of type constructors
+4. **Transformers** - compose effects
+5. **Generic code** - write once, works for many types
 
-Higher-kinded types enable powerful abstractions found in languages like Haskell and Scala. While TypeScript requires encoding tricks, the patterns unlock highly reusable, type-safe code.
+Higher-kinded types are fundamental to Haskell's abstraction capabilities. They enable writing truly generic, reusable code that works uniformly across different computational contexts.
