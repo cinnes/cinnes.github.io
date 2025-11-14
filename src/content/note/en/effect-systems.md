@@ -1,506 +1,500 @@
 ---
 title: Effect Systems - Tracking and Controlling Side Effects
 timestamp: 2025-11-16 00:00:00+00:00
-description: Master effect systems to make side effects explicit, composable, and controllable through algebraic effects and effect handlers.
-tags: [fp, effects, algebraic, advanced]
+description: Master effect systems to make side effects explicit, composable, and controllable through MTL-style type classes and monad transformers.
+tags: [fp, effects, mtl, haskell]
 toc: true
 ---
 
 # Effect Systems - Tracking and Controlling Side Effects
 
-Effect systems make side effects explicit in function signatures, allowing you to track, compose, and handle effects separately from business logic. This separation enables powerful abstractions and easier testing.
+Effect systems make side effects explicit in type signatures, allowing you to track, compose, and handle effects separately from business logic. Haskell's MTL (Monad Transformer Library) provides this through type classes.
 
 ## The Problem with Hidden Effects
 
-```typescript
-// What effects does this function have?
-function processUser(id: number): User {
-  const user = fetchFromDatabase(id);  // I/O!
-  logActivity('User accessed');         // Logging!
-  if (!user) {
-    throw new Error('Not found');       // Exception!
-  }
-  return user;
-}
-
-// Type signature lies - claims to be pure
+```haskell
+-- What effects does this function have?
+processUser :: Int -> User
+processUser userId =
+  let user = queryDatabase userId  -- Database I/O!
+      _ = log "User accessed"        -- Logging!
+  in if isNothing user
+    then error "Not found"           -- Exception!
+    else fromJust user
+-- Type signature lies - claims to be pure!
 ```
 
-Effects are hidden:
+Effects are hidden - the type doesn't reveal:
 - **Database access** - I/O dependency
 - **Logging** - side effect
-- **Exceptions** - control flow disruption
+- **Exceptions** - partial function
 
-## Effect as Data
+## MTL - Effect Type Classes
 
-Represent effects as data structures:
+MTL uses type classes to describe effects:
 
-```typescript
-// Effect type - describes computation, doesn't execute
-type Effect<E, A> = {
-  tag: 'Pure';
-  value: A;
-} | {
-  tag: 'Effectful';
-  effect: E;
-  continue: (result: any) => Effect<E, A>;
-};
+```haskell
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Except
+import Control.Monad.Writer
 
-// Pure value (no effects)
-function pure<A>(value: A): Effect<never, A> {
-  return { tag: 'Pure', value };
-}
+-- MonadReader - read-only environment
+class Monad m => MonadReader r m | m -> r where
+  ask :: m r
+  local :: (r -> r) -> m a -> m a
 
-// Effectful computation
-function effectful<E, A>(
-  effect: E,
-  continue: (result: any) => Effect<E, A>
-): Effect<E, A> {
-  return { tag: 'Effectful', effect, continue };
-}
+-- MonadState - mutable state
+class Monad m => MonadState s m | m -> s where
+  get :: m s
+  put :: s -> m ()
 
-// Map over effect
-function map<E, A, B>(
-  eff: Effect<E, A>,
-  f: (a: A) => B
-): Effect<E, B> {
-  if (eff.tag === 'Pure') {
-    return pure(f(eff.value));
-  }
+-- MonadError - error handling
+class Monad m => MonadError e m | m -> e where
+  throwError :: e -> m a
+  catchError :: m a -> (e -> m a) -> m a
 
-  return effectful(
-    eff.effect,
-    result => map(eff.continue(result), f)
-  );
-}
-
-// Bind effects together
-function flatMap<E, A, B>(
-  eff: Effect<E, A>,
-  f: (a: A) => Effect<E, B>
-): Effect<E, B> {
-  if (eff.tag === 'Pure') {
-    return f(eff.value);
-  }
-
-  return effectful(
-    eff.effect,
-    result => flatMap(eff.continue(result), f)
-  );
-}
+-- MonadWriter - accumulating output
+class Monad m => MonadWriter w m | m -> w where
+  tell :: w -> m ()
+  listen :: m a -> m (a, w)
 ```
 
-## Algebraic Effects
+## Explicit Effects in Types
 
-Define effects as operations:
+```haskell
+-- Now effects are visible!
+processUser :: (MonadReader Config m, MonadError String m, MonadIO m)
+            => Int -> m User
+processUser userId = do
+  config <- ask                    -- Read config
+  user <- liftIO $ queryDB config userId  -- I/O
+  case user of
+    Nothing -> throwError "User not found"  -- Error
+    Just u -> return u
 
-```typescript
-// Effect operations
-type ConsoleEffect =
-  | { type: 'Log'; message: string }
-  | { type: 'Read' };
-
-type HttpEffect = {
-  type: 'Fetch';
-  url: string;
-};
-
-type DatabaseEffect =
-  | { type: 'Query'; sql: string }
-  | { type: 'Execute'; sql: string };
-
-// Combined effects
-type AppEffect = ConsoleEffect | HttpEffect | DatabaseEffect;
-
-// Perform an effect
-function perform<E>(effect: E): Effect<E, any> {
-  return effectful(effect, result => pure(result));
-}
-
-// Example: console logging
-function log(message: string): Effect<ConsoleEffect, void> {
-  return perform({ type: 'Log', message });
-}
-
-function readLine(): Effect<ConsoleEffect, string> {
-  return perform({ type: 'Read' });
-}
-
-// Example: HTTP
-function fetch(url: string): Effect<HttpEffect, Response> {
-  return perform({ type: 'Fetch', url });
-}
-
-// Example: database
-function query(sql: string): Effect<DatabaseEffect, any[]> {
-  return perform({ type: 'Query', sql });
-}
+-- Type signature tells us exactly what effects this uses
 ```
 
-## Effect Handlers
+## Reader - Configuration
 
-Interpret effects by providing handlers:
+Pass configuration without explicit threading:
 
-```typescript
-// Handler for an effect
-type Handler<E, R> = (effect: E) => R;
+```haskell
+import Control.Monad.Reader
 
-// Run effect with handler
-function handle<E, A, R>(
-  eff: Effect<E, A>,
-  handler: Handler<E, any>
-): A {
-  if (eff.tag === 'Pure') {
-    return eff.value;
+data Config = Config
+  { dbHost :: String
+  , dbPort :: Int
+  , apiKey :: String
   }
 
-  const result = handler(eff.effect);
-  return handle(eff.continue(result), handler);
-}
+-- Business logic with Config access
+getDbConnection :: (MonadReader Config m, MonadIO m) => m Connection
+getDbConnection = do
+  config <- ask
+  liftIO $ connect (dbHost config) (dbPort config)
 
-// Console handler (real implementation)
-const consoleHandler: Handler<ConsoleEffect, any> = (effect) => {
-  switch (effect.type) {
-    case 'Log':
-      console.log(effect.message);
-      return undefined;
-    case 'Read':
-      // In real code, use readline or similar
-      return 'user input';
+makeApiRequest :: (MonadReader Config m, MonadIO m) => String -> m Response
+makeApiRequest endpoint = do
+  config <- ask
+  liftIO $ httpGet endpoint (apiKey config)
+
+-- Compose operations
+processData :: (MonadReader Config m, MonadIO m) => m Result
+processData = do
+  conn <- getDbConnection
+  data' <- liftIO $ queryDB conn "SELECT * FROM users"
+  response <- makeApiRequest "/api/process"
+  return $ combine data' response
+
+-- Run with config
+main :: IO ()
+main = do
+  let config = Config "localhost" 5432 "secret-key"
+  result <- runReaderT processData config
+  print result
+```
+
+## State - Mutable State
+
+Thread state through computations:
+
+```haskell
+import Control.Monad.State
+
+-- Counter with state
+increment :: MonadState Int m => m ()
+increment = modify (+1)
+
+getCount :: MonadState Int m => m Int
+getCount = get
+
+-- Example: count operations
+countOps :: MonadState Int m => [Int] -> m Int
+countOps [] = getCount
+countOps (x:xs) = do
+  increment  -- Count this operation
+  -- Process x...
+  countOps xs
+
+-- Run with initial state
+main :: IO ()
+main = do
+  let (result, finalCount) = runState (countOps [1..100]) 0
+  print finalCount  -- 100
+```
+
+## Error - Exception Handling
+
+Type-safe error handling:
+
+```haskell
+import Control.Monad.Except
+
+data AppError
+  = NotFound String
+  | Unauthorized
+  | ValidationError String
+  deriving Show
+
+-- Functions that can fail
+findUser :: MonadError AppError m => Int -> m User
+findUser userId =
+  if userId > 0
+    then return (User userId "Alice")
+    else throwError (ValidationError "Invalid user ID")
+
+requireAuth :: MonadError AppError m => Maybe Token -> m Token
+requireAuth Nothing = throwError Unauthorized
+requireAuth (Just token) = return token
+
+-- Compose failable operations
+getAuthenticatedUser :: (MonadError AppError m) => Maybe Token -> Int -> m User
+getAuthenticatedUser maybeToken userId = do
+  token <- requireAuth maybeToken
+  user <- findUser userId
+  return user
+
+-- Handle errors
+main :: IO ()
+main = do
+  result <- runExceptT $ getAuthenticatedUser Nothing 42
+  case result of
+    Left Unauthorized -> putStrLn "Not authorized"
+    Left (NotFound msg) -> putStrLn $ "Not found: " ++ msg
+    Left (ValidationError msg) -> putStrLn $ "Invalid: " ++ msg
+    Right user -> print user
+```
+
+## Writer - Logging
+
+Accumulate log messages:
+
+```haskell
+import Control.Monad.Writer
+
+-- Log with Writer
+processItem :: MonadWriter [String] m => Int -> m Int
+processItem x = do
+  tell ["Processing: " ++ show x]
+  let result = x * 2
+  tell ["Result: " ++ show result]
+  return result
+
+processAll :: MonadWriter [String] m => [Int] -> m [Int]
+processAll xs = mapM processItem xs
+
+-- Run and get logs
+main :: IO ()
+main = do
+  let (results, logs) = runWriter (processAll [1, 2, 3])
+  print results  -- [2, 4, 6]
+  mapM_ putStrLn logs
+  -- Processing: 1
+  -- Result: 2
+  -- Processing: 2
+  -- Result: 4
+  -- ...
+```
+
+## Combining Effects
+
+Use multiple effects together:
+
+```haskell
+-- Multiple constraints
+processUser :: ( MonadReader Config m
+               , MonadState Int m
+               , MonadError AppError m
+               , MonadWriter [String] m
+               , MonadIO m
+               )
+            => Int -> m User
+processUser userId = do
+  -- Reader
+  config <- ask
+  tell ["Using config: " ++ show config]
+
+  -- State
+  modify (+1)  -- Increment request counter
+
+  -- Error
+  when (userId <= 0) $
+    throwError (ValidationError "Invalid ID")
+
+  -- IO
+  user <- liftIO $ queryDatabase config userId
+
+  -- Writer
+  tell ["Fetched user: " ++ show userId]
+
+  return user
+```
+
+## Monad Transformers
+
+Stack effects with transformers:
+
+```haskell
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Except
+
+-- Concrete monad stack
+type App a = ReaderT Config (StateT Int (ExceptT AppError IO)) a
+
+-- Or using mtl style
+-- App automatically has all the instances
+
+-- Run the stack
+runApp :: Config -> Int -> App a -> IO (Either AppError (a, Int))
+runApp config initialState action =
+  runExceptT $
+    runStateT (runReaderT action config) initialState
+
+-- Example
+app :: App User
+app = do
+  config <- ask
+  count <- get
+  put (count + 1)
+  liftIO $ putStrLn "Processing..."
+  findUser 42
+
+main :: IO ()
+main = do
+  let config = Config "localhost" 5432 "key"
+  result <- runApp config 0 app
+  case result of
+    Left err -> print err
+    Right (user, count) -> print (user, count)
+```
+
+## Custom Effect Type Classes
+
+Define your own effects:
+
+```haskell
+-- Custom effect: logging
+class Monad m => MonadLog m where
+  logInfo :: String -> m ()
+  logError :: String -> m ()
+  logDebug :: String -> m ()
+
+-- Custom effect: database
+class Monad m => MonadDB m where
+  query :: String -> m [Row]
+  execute :: String -> m Int
+
+-- Custom effect: cache
+class Monad m => MonadCache m where
+  cacheGet :: String -> m (Maybe Value)
+  cacheSet :: String -> Value -> m ()
+
+-- Business logic using custom effects
+fetchUser :: (MonadDB m, MonadCache m, MonadLog m) => Int -> m User
+fetchUser userId = do
+  logInfo $ "Fetching user: " ++ show userId
+
+  -- Try cache first
+  cached <- cacheGet ("user:" ++ show userId)
+  case cached of
+    Just user -> do
+      logDebug "Cache hit"
+      return user
+    Nothing -> do
+      logDebug "Cache miss"
+      rows <- query $ "SELECT * FROM users WHERE id = " ++ show userId
+      let user = parseUser (head rows)
+      cacheSet ("user:" ++ show userId) user
+      return user
+```
+
+## Effect Instances
+
+Implement custom effects for different contexts:
+
+```haskell
+-- Production instances
+instance MonadLog IO where
+  logInfo msg = putStrLn $ "[INFO] " ++ msg
+  logError msg = putStrLn $ "[ERROR] " ++ msg
+  logDebug msg = putStrLn $ "[DEBUG] " ++ msg
+
+-- Test instances
+data TestEnv = TestEnv
+  { envLogs :: IORef [String]
+  , envCache :: IORef (Map String Value)
   }
-};
 
-// Console handler (test mock)
-const mockConsoleHandler = (() => {
-  const logs: string[] = [];
+newtype TestM a = TestM { runTestM :: ReaderT TestEnv IO a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader TestEnv)
 
-  return {
-    handler: (effect: ConsoleEffect) => {
-      if (effect.type === 'Log') {
-        logs.push(effect.message);
-        return undefined;
-      }
-      return 'mocked input';
-    },
-    getLogs: () => logs
-  };
-})();
+instance MonadLog TestM where
+  logInfo msg = do
+    logsRef <- asks envLogs
+    liftIO $ modifyIORef logsRef (++ ["INFO: " ++ msg])
+  logError msg = do
+    logsRef <- asks envLogs
+    liftIO $ modifyIORef logsRef (++ ["ERROR: " ++ msg])
+  logDebug msg = return ()  -- Ignore in tests
 
-// HTTP handler
-const httpHandler: Handler<HttpEffect, Promise<Response>> = (effect) => {
-  return window.fetch(effect.url);
-};
+instance MonadCache TestM where
+  cacheGet key = do
+    cacheRef <- asks envCache
+    cache <- liftIO $ readIORef cacheRef
+    return $ Map.lookup key cache
+  cacheSet key value = do
+    cacheRef <- asks envCache
+    liftIO $ modifyIORef cacheRef (Map.insert key value)
+```
 
-// Database handler
-const dbHandler: Handler<DatabaseEffect, any> = (effect) => {
-  switch (effect.type) {
-    case 'Query':
-      // Execute query
-      return [{ id: 1, name: 'Alice' }];
-    case 'Execute':
-      // Execute command
-      return { rowsAffected: 1 };
+## Polymorphic Effect Functions
+
+Write once, run anywhere:
+
+```haskell
+-- Generic business logic
+processOrder :: ( MonadDB m
+                , MonadLog m
+                , MonadCache m
+                , MonadError AppError m
+                ) => Order -> m Receipt
+processOrder order = do
+  logInfo $ "Processing order: " ++ show (orderId order)
+
+  -- Validate
+  valid <- validateOrder order
+  unless valid $
+    throwError (ValidationError "Invalid order")
+
+  -- Check inventory
+  available <- checkInventory (orderItems order)
+  unless available $
+    throwError (NotFound "Item out of stock")
+
+  -- Process payment
+  paymentResult <- processPayment (orderPayment order)
+
+  -- Update database
+  execute $ "INSERT INTO orders ..."
+
+  logInfo "Order processed successfully"
+  return (makeReceipt order paymentResult)
+
+-- Run in production
+main :: IO ()
+main = runProdApp $ processOrder myOrder
+
+-- Run in tests
+testProcessOrder :: IO ()
+testProcessOrder = runTestApp $ processOrder testOrder
+```
+
+## ReaderT Pattern
+
+Common pattern: ReaderT over IO:
+
+```haskell
+-- Application monad
+data Env = Env
+  { envConfig :: Config
+  , envLogger :: Logger
+  , envDB :: Connection
   }
-};
+
+newtype App a = App { unApp :: ReaderT Env IO a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader Env)
+
+-- Helper functions
+runApp :: Env -> App a -> IO a
+runApp env app = runReaderT (unApp app) env
+
+getConfig :: App Config
+getConfig = asks envConfig
+
+getLogger :: App Logger
+getLogger = asks envLogger
+
+getDB :: App Connection
+getDB = asks envDB
+
+-- Business logic
+processRequest :: Request -> App Response
+processRequest req = do
+  logger <- getLogger
+  db <- getDB
+
+  liftIO $ logMessage logger "Processing request"
+  result <- liftIO $ queryDB db (reqQuery req)
+
+  return $ makeResponse result
 ```
 
-## Composing Effects
+## Effect Isolation
 
-```typescript
-// User service with effects
-function getUser(id: number): Effect<HttpEffect | ConsoleEffect, User> {
-  return flatMap(
-    log(`Fetching user ${id}`),
-    () => flatMap(
-      fetch(`/api/users/${id}`),
-      response => flatMap(
-        log('User fetched successfully'),
-        () => pure(response.json())
-      )
-    )
-  );
-}
+Keep effects at the edges:
 
-// Save user with multiple effects
-function saveUser(
-  user: User
-): Effect<DatabaseEffect | ConsoleEffect, void> {
-  return flatMap(
-    log(`Saving user ${user.id}`),
-    () => flatMap(
-      query(`INSERT INTO users VALUES (${user.id}, '${user.name}')`),
-      () => log('User saved')
-    )
-  );
-}
+```haskell
+-- Pure core logic
+validateOrder :: Order -> Bool
+validateOrder order =
+  not (null (orderItems order)) &&
+  orderTotal order > 0
 
-// Compose different effects
-function processUser(
-  id: number
-): Effect<HttpEffect | DatabaseEffect | ConsoleEffect, void> {
-  return flatMap(
-    getUser(id),
-    user => saveUser(user)
-  );
-}
+calculateDiscount :: Order -> Customer -> Double
+calculateDiscount order customer =
+  let baseDiscount = if customerVIP customer then 0.1 else 0
+      volumeDiscount = if orderTotal order > 1000 then 0.05 else 0
+  in baseDiscount + volumeDiscount
 
-// Handle all effects
-function handleAppEffect(effect: AppEffect): any {
-  if ('type' in effect) {
-    switch (effect.type) {
-      case 'Log':
-        return consoleHandler(effect);
-      case 'Read':
-        return consoleHandler(effect);
-      case 'Fetch':
-        return httpHandler(effect);
-      case 'Query':
-      case 'Execute':
-        return dbHandler(effect);
-    }
-  }
-}
+-- Effectful shell
+processOrderIO :: (MonadIO m, MonadDB m, MonadLog m) => Order -> m Receipt
+processOrderIO order = do
+  -- Pure validation
+  unless (validateOrder order) $
+    error "Invalid order"
 
-// Run program
-const program = processUser(1);
-handle(program, handleAppEffect);
-```
+  -- Fetch data
+  customer <- fetchCustomer (orderCustomerId order)
 
-## Effect Polymorphism
+  -- Pure calculation
+  let discount = calculateDiscount order customer
+  let finalTotal = orderTotal order * (1 - discount)
 
-```typescript
-// Generic effect constraint
-type HasLog = { type: 'Log'; message: string };
-
-// Function polymorphic over effects
-function logTwice<E extends HasLog>(
-  message: string
-): Effect<E, void> {
-  return flatMap(
-    perform<E>({ type: 'Log', message } as E),
-    () => perform<E>({ type: 'Log', message } as E)
-  );
-}
-
-// Works with any effect type that includes Log
-const consoleEffect: Effect<ConsoleEffect, void> =
-  logTwice('Hello');
-
-type ExtendedEffect = ConsoleEffect | { type: 'Other' };
-const extendedEffect: Effect<ExtendedEffect, void> =
-  logTwice('Hello');
-```
-
-## Scoped Effects
-
-```typescript
-// Scoped resource management
-type ResourceEffect<R> = {
-  type: 'Acquire';
-  resource: string;
-  cleanup: (r: R) => void;
-};
-
-function acquire<R>(
-  resource: string,
-  cleanup: (r: R) => void
-): Effect<ResourceEffect<R>, R> {
-  return perform({ type: 'Acquire', resource, cleanup });
-}
-
-// Bracket pattern: acquire, use, release
-function bracket<E, R, A>(
-  acquire: Effect<E, R>,
-  use: (r: R) => Effect<E, A>,
-  release: (r: R) => Effect<E, void>
-): Effect<E, A> {
-  return flatMap(acquire, resource =>
-    flatMap(
-      use(resource),
-      result => flatMap(
-        release(resource),
-        () => pure(result)
-      )
-    )
-  );
-}
-
-// Example: file handling
-type FileHandle = { path: string; handle: number };
-
-function openFile(path: string): Effect<ResourceEffect<FileHandle>, FileHandle> {
-  return acquire(
-    path,
-    (fh) => console.log(`Closing ${fh.path}`)
-  );
-}
-
-function readFile(fh: FileHandle): Effect<never, string> {
-  return pure(`Contents of ${fh.path}`);
-}
-
-function closeFile(fh: FileHandle): Effect<never, void> {
-  return pure(undefined);
-}
-
-// Safe file reading with automatic cleanup
-const safeRead = (path: string) =>
-  bracket(
-    openFile(path),
-    fh => readFile(fh),
-    fh => closeFile(fh)
-  );
-```
-
-## Extensible Effects
-
-```typescript
-// Open effect type - can be extended
-type Open = any;
-
-// Effect with open extension point
-type ExtEffect<E, A> = Effect<E | Open, A>;
-
-// Extend with new effects
-type WithAuth<E, A> = Effect<E | { type: 'CheckAuth' }, A>;
-
-function checkAuth<E>(): WithAuth<E, boolean> {
-  return perform({ type: 'CheckAuth' });
-}
-
-// Compose with existing effects
-function protectedFetch<E>(
-  url: string
-): WithAuth<E | HttpEffect, Response> {
-  return flatMap(
-    checkAuth<E | HttpEffect>(),
-    authed => {
-      if (!authed) {
-        throw new Error('Unauthorized');
-      }
-      return fetch(url);
-    }
-  );
-}
-```
-
-## Real-World: Dependency Injection
-
-```typescript
-// Service effects
-type ServiceEffect =
-  | { type: 'GetConfig'; key: string }
-  | { type: 'GetLogger' }
-  | { type: 'GetDatabase' };
-
-// Access services through effects
-function getConfig(key: string): Effect<ServiceEffect, any> {
-  return perform({ type: 'GetConfig', key });
-}
-
-function getLogger(): Effect<ServiceEffect, Logger> {
-  return perform({ type: 'GetLogger' });
-}
-
-function getDatabase(): Effect<ServiceEffect, Database> {
-  return perform({ type: 'GetDatabase' });
-}
-
-// Business logic using services
-function createUser(
-  name: string
-): Effect<ServiceEffect, User> {
-  return flatMap(
-    getDatabase(),
-    db => flatMap(
-      getLogger(),
-      logger => {
-        logger.info(`Creating user: ${name}`);
-        const user = db.insert({ name });
-        return pure(user);
-      }
-    )
-  );
-}
-
-// Production handler
-const productionServices: Handler<ServiceEffect, any> = (effect) => {
-  switch (effect.type) {
-    case 'GetConfig':
-      return process.env[effect.key];
-    case 'GetLogger':
-      return console;
-    case 'GetDatabase':
-      return realDatabase;
-  }
-};
-
-// Test handler
-const testServices: Handler<ServiceEffect, any> = (effect) => {
-  switch (effect.type) {
-    case 'GetConfig':
-      return 'test-value';
-    case 'GetLogger':
-      return { info: () => {}, error: () => {} };
-    case 'GetDatabase':
-      return mockDatabase;
-  }
-};
-
-// Run with different handlers
-const prodUser = handle(createUser('Alice'), productionServices);
-const testUser = handle(createUser('Bob'), testServices);
-```
-
-## Effect Tracking at Type Level
-
-```typescript
-// Track effects in type signature
-type Program<E extends string, A> = {
-  effects: E[];
-  run: () => Effect<any, A>;
-};
-
-// Construct program with effect tracking
-function program<E extends string, A>(
-  effects: E[],
-  run: () => Effect<any, A>
-): Program<E, A> {
-  return { effects, run };
-}
-
-// Compose programs - union of effects
-function composePrograms<E1 extends string, E2 extends string, A, B>(
-  p1: Program<E1, A>,
-  p2: Program<E2, B>
-): Program<E1 | E2, B> {
-  return program(
-    [...p1.effects, ...p2.effects],
-    () => flatMap(p1.run(), () => p2.run())
-  );
-}
-
-// Example programs
-const logProgram = program(
-  ['Console'],
-  () => log('Hello')
-);
-
-const httpProgram = program(
-  ['Http'],
-  () => fetch('/api/data')
-);
-
-// Combined: ['Console', 'Http']
-const combined = composePrograms(logProgram, httpProgram);
+  -- Save and log
+  logInfo $ "Processing order with discount: " ++ show discount
+  saveOrder order finalTotal
+  return (makeReceipt order finalTotal)
 ```
 
 ## Key Takeaways
 
-1. **Effects as data** - represent side effects as values
-2. **Separation** - business logic separate from effect interpretation
-3. **Handlers** - provide multiple interpretations (prod, test, etc.)
-4. **Composition** - combine effects freely, handle uniformly
-5. **Type safety** - track effects in type signatures
+1. **Type classes** - describe effects as constraints
+2. **MTL** - standard effect type classes (Reader, State, Error, Writer)
+3. **Transformers** - stack multiple effects
+4. **Custom effects** - define domain-specific effect interfaces
+5. **Polymorphic** - write once, run in multiple contexts
 
-Effect systems make side effects explicit, testable, and composable. They bring the benefits of pure functional programming to real-world applications that need I/O, state, and other effects.
+Haskell's effect systems make side effects explicit, testable, and composable. By encoding effects in types, you gain compile-time guarantees about what your code can do, making programs easier to reason about and refactor.

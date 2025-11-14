@@ -2,7 +2,7 @@
 title: Free Monads - Separating Description from Interpretation
 timestamp: 2025-11-17 00:00:00+00:00
 description: Build programs as data structures using free monads to completely separate program description from execution, enabling multiple interpreters and optimizations.
-tags: [fp, monads, free, advanced]
+tags: [fp, monads, free, haskell]
 toc: true
 ---
 
@@ -10,553 +10,443 @@ toc: true
 
 Free monads let you build programs as pure data structures, completely separating *what* your program does from *how* it does it. This enables multiple interpreters, optimizations, and testing without changing business logic.
 
-## The Concept
+## The Free Monad Type
 
-A free monad is the "freest" monad you can build from a functor—it has no behavior except what's required by monad laws. You define operations, build programs, then interpret them later.
+```haskell
+import Control.Monad.Free
 
-```typescript
-// Free monad structure
-type Free<F, A> =
-  | { tag: 'Pure'; value: A }
-  | { tag: 'Free'; functor: F };
+-- Free monad: the freest monad over a functor
+data Free f a
+  = Pure a
+  | Free (f (Free f a))
 
-// Pure value
-function pure<F, A>(value: A): Free<F, A> {
-  return { tag: 'Pure', value };
-}
+instance Functor f => Functor (Free f) where
+  fmap f (Pure a) = Pure (f a)
+  fmap f (Free fa) = Free (fmap (fmap f) fa)
 
-// Wrap a functor
-function liftF<F, A>(functor: F): Free<F, A> {
-  return { tag: 'Free', functor };
-}
+instance Functor f => Applicative (Free f) where
+  pure = Pure
+  Pure f <*> Pure a = Pure (f a)
+  Pure f <*> Free fa = Free (fmap (fmap f) fa)
+  Free ff <*> fa = Free (fmap (<*> fa) ff)
+
+instance Functor f => Monad (Free f) where
+  Pure a >>= f = f a
+  Free fa >>= f = Free (fmap (>>= f) fa)
+
+-- Lift a functor into Free
+liftF :: Functor f => f a -> Free f a
+liftF fa = Free (fmap Pure fa)
 ```
 
 ## Building a DSL
 
 Define operations as a functor:
 
-```typescript
-// Console operations
-type ConsoleF<A> =
-  | { type: 'Print'; message: string; next: A }
-  | { type: 'Read'; continue: (input: string) => A };
+```haskell
+{-# LANGUAGE DeriveFunctor #-}
 
-// Functor instance for ConsoleF
-function mapConsole<A, B>(
-  fa: ConsoleF<A>,
-  f: (a: A) => B
-): ConsoleF<B> {
-  switch (fa.type) {
-    case 'Print':
-      return { type: 'Print', message: fa.message, next: f(fa.next) };
-    case 'Read':
-      return { type: 'Read', continue: (input) => f(fa.continue(input)) };
-  }
-}
+-- Console DSL
+data ConsoleF next
+  = Print String next
+  | ReadLine (String -> next)
+  deriving Functor
 
-// Smart constructors
-function print(message: string): Free<ConsoleF<any>, void> {
-  return liftF({ type: 'Print', message, next: undefined });
-}
+type Console = Free ConsoleF
 
-function read(): Free<ConsoleF<any>, string> {
-  return liftF({
-    type: 'Read',
-    continue: (input: string) => input
-  });
-}
-```
+-- Smart constructors
+printLine :: String -> Console ()
+printLine msg = liftF (Print msg ())
 
-## Monad Operations
+readLine :: Console String
+readLine = liftF (ReadLine id)
 
-```typescript
-// Map over Free
-function map<F, A, B>(
-  fa: Free<F, A>,
-  f: (a: A) => B
-): Free<F, B> {
-  if (fa.tag === 'Pure') {
-    return pure(f(fa.value));
-  }
-
-  // Need to map the functor F
-  return liftF(fa.functor);  // Simplified - see full version below
-}
-
-// FlatMap (bind)
-function flatMap<F, A, B>(
-  fa: Free<F, A>,
-  f: (a: A) => Free<F, B>
-): Free<F, B> {
-  if (fa.tag === 'Pure') {
-    return f(fa.value);
-  }
-
-  return liftF(fa.functor);  // Simplified
-}
-```
-
-## Full Free Monad Implementation
-
-```typescript
-// Proper free monad with continuation
-type Free<F, A> =
-  | { tag: 'Pure'; value: A }
-  | { tag: 'Free'; functor: F; continue: (a: any) => Free<F, A> };
-
-function pure<F, A>(value: A): Free<F, A> {
-  return { tag: 'Pure', value };
-}
-
-function liftF<F, A>(
-  functor: F,
-  continue: (a: any) => Free<F, A>
-): Free<F, A> {
-  return { tag: 'Free', functor, continue };
-}
-
-// Smart constructors for console
-function print(message: string): Free<ConsoleF<any>, void> {
-  return liftF<ConsoleF<any>, void>(
-    { type: 'Print', message, next: undefined },
-    () => pure(undefined)
-  );
-}
-
-function read(): Free<ConsoleF<any>, string> {
-  return liftF<ConsoleF<any>, string>(
-    { type: 'Read', continue: (x) => x },
-    (input: string) => pure(input)
-  );
-}
-
-// FlatMap implementation
-function flatMap<F, A, B>(
-  fa: Free<F, A>,
-  f: (a: A) => Free<F, B>
-): Free<F, B> {
-  if (fa.tag === 'Pure') {
-    return f(fa.value);
-  }
-
-  return liftF(
-    fa.functor,
-    (a) => flatMap(fa.continue(a), f)
-  );
-}
-```
-
-## Building Programs
-
-```typescript
-// Helper for sequencing
-function then<F, A, B>(
-  fa: Free<F, A>,
-  fb: Free<F, B>
-): Free<F, B> {
-  return flatMap(fa, () => fb);
-}
-
-// Example program
-function greetUser(): Free<ConsoleF<any>, void> {
-  return flatMap(
-    print('What is your name?'),
-    () => flatMap(
-      read(),
-      (name) => print(`Hello, ${name}!`)
-    )
-  );
-}
-
-// More complex program
-function calculator(): Free<ConsoleF<any>, number> {
-  return flatMap(
-    print('Enter first number:'),
-    () => flatMap(
-      read(),
-      (a) => flatMap(
-        print('Enter second number:'),
-        () => flatMap(
-          read(),
-          (b) => {
-            const result = Number(a) + Number(b);
-            return flatMap(
-              print(`Result: ${result}`),
-              () => pure(result)
-            );
-          }
-        )
-      )
-    )
-  );
-}
+-- Build programs
+greet :: Console ()
+greet = do
+  printLine "What's your name?"
+  name <- readLine
+  printLine $ "Hello, " ++ name ++ "!"
 ```
 
 ## Interpreters
 
-The power of free monads: multiple interpreters for the same program.
+The power: multiple ways to run the same program!
 
-```typescript
-// Interpreter: run in console
-function interpretConsole<A>(
-  program: Free<ConsoleF<any>, A>
-): A {
-  if (program.tag === 'Pure') {
-    return program.value;
-  }
+```haskell
+-- Interpreter 1: Real IO
+runConsoleIO :: Console a -> IO a
+runConsoleIO (Pure a) = return a
+runConsoleIO (Free (Print msg next)) = do
+  putStrLn msg
+  runConsoleIO next
+runConsoleIO (Free (ReadLine cont)) = do
+  input <- getLine
+  runConsoleIO (cont input)
 
-  const { functor, continue: cont } = program;
+-- Interpreter 2: Pure testing
+runConsolePure :: [String] -> Console a -> (a, [String])
+runConsolePure inputs prog = run inputs [] prog
+  where
+    run _ output (Pure a) = (a, reverse output)
+    run inputs output (Free (Print msg next)) =
+      run inputs (msg : output) next
+    run (i:is) output (Free (ReadLine cont)) =
+      run is output (cont i)
+    run [] output (Free (ReadLine cont)) =
+      run [] output (cont "")
 
-  switch (functor.type) {
-    case 'Print':
-      console.log(functor.message);
-      return interpretConsole(cont(functor.next));
+-- Usage
+main :: IO ()
+main = runConsoleIO greet
 
-    case 'Read':
-      const input = prompt('Input:') || '';
-      const next = functor.continue(input);
-      return interpretConsole(cont(next));
-  }
-}
-
-// Interpreter: collect trace (for testing)
-function interpretTrace<A>(
-  program: Free<ConsoleF<any>, A>,
-  inputs: string[] = []
-): [A, string[]] {
-  const trace: string[] = [];
-
-  function run(prog: Free<ConsoleF<any>, A>): A {
-    if (prog.tag === 'Pure') {
-      return prog.value;
-    }
-
-    const { functor, continue: cont } = prog;
-
-    switch (functor.type) {
-      case 'Print':
-        trace.push(`Print: ${functor.message}`);
-        return run(cont(functor.next));
-
-      case 'Read':
-        const input = inputs.shift() || '';
-        trace.push(`Read: ${input}`);
-        const next = functor.continue(input);
-        return run(cont(next));
-    }
-  }
-
-  const result = run(program);
-  return [result, trace];
-}
-
-// Test program without I/O!
-const program = greetUser();
-const [_, trace] = interpretTrace(program, ['Alice']);
-// trace: ['Print: What is your name?', 'Read: Alice', 'Print: Hello, Alice!']
+-- Test
+test :: ((), [String])
+test = runConsolePure ["Alice"] greet
+-- ((), ["What's your name?", "Hello, Alice!"])
 ```
 
-## HTTP Client DSL
+## HTTP DSL
 
-```typescript
-// HTTP operations
-type HttpF<A> =
-  | { type: 'Get'; url: string; continue: (data: any) => A }
-  | { type: 'Post'; url: string; body: any; continue: (data: any) => A }
-  | { type: 'Delete'; url: string; continue: () => A };
+```haskell
+data HttpF next
+  = Get String (Response -> next)
+  | Post String Body (Response -> next)
+  | Delete String (next)
+  deriving Functor
 
-// Smart constructors
-function get(url: string): Free<HttpF<any>, any> {
-  return liftF(
-    { type: 'Get', url, continue: (x) => x },
-    (data) => pure(data)
-  );
-}
+type Http = Free HttpF
 
-function post(url: string, body: any): Free<HttpF<any>, any> {
-  return liftF(
-    { type: 'Post', url, body, continue: (x) => x },
-    (data) => pure(data)
-  );
-}
+-- Smart constructors
+httpGet :: String -> Http Response
+httpGet url = liftF (Get url id)
 
-function del(url: string): Free<HttpF<any>, void> {
-  return liftF(
-    { type: 'Delete', url, continue: () => undefined },
-    () => pure(undefined)
-  );
-}
+httpPost :: String -> Body -> Http Response
+httpPost url body = liftF (Post url body id)
 
-// Build API client
-function createUser(name: string): Free<HttpF<any>, User> {
-  return post('/api/users', { name });
-}
+httpDelete :: String -> Http ()
+httpDelete url = liftF (Delete url ())
 
-function getUser(id: number): Free<HttpF<any>, User> {
-  return get(`/api/users/${id}`);
-}
+-- Example program
+getUserData :: Int -> Http User
+getUserData userId = do
+  resp <- httpGet $ "/users/" ++ show userId
+  return (parseUser resp)
 
-function deleteUser(id: number): Free<HttpF<any>, void> {
-  return del(`/api/users/${id}`);
-}
+createUser :: User -> Http Response
+createUser user = httpPost "/users" (encodeUser user)
 
-// Compose operations
-function updateUserName(
-  id: number,
-  newName: string
-): Free<HttpF<any>, User> {
-  return flatMap(
-    getUser(id),
-    (user) => post(`/api/users/${id}`, { ...user, name: newName })
-  );
-}
+-- Production interpreter
+runHttpIO :: Http a -> IO a
+runHttpIO (Pure a) = return a
+runHttpIO (Free (Get url cont)) = do
+  resp <- Network.httpGet url
+  runHttpIO (cont resp)
+runHttpIO (Free (Post url body cont)) = do
+  resp <- Network.httpPost url body
+  runHttpIO (cont resp)
+runHttpIO (Free (Delete url next)) = do
+  Network.httpDelete url
+  runHttpIO next
 
-// Production interpreter
-async function interpretHttp<A>(
-  program: Free<HttpF<any>, A>
-): Promise<A> {
-  if (program.tag === 'Pure') {
-    return program.value;
-  }
-
-  const { functor, continue: cont } = program;
-
-  switch (functor.type) {
-    case 'Get':
-      const getResp = await fetch(functor.url);
-      const getData = await getResp.json();
-      const getNext = functor.continue(getData);
-      return interpretHttp(cont(getNext));
-
-    case 'Post':
-      const postResp = await fetch(functor.url, {
-        method: 'POST',
-        body: JSON.stringify(functor.body)
-      });
-      const postData = await postResp.json();
-      const postNext = functor.continue(postData);
-      return interpretHttp(cont(postNext));
-
-    case 'Delete':
-      await fetch(functor.url, { method: 'DELETE' });
-      const delNext = functor.continue();
-      return interpretHttp(cont(delNext));
-  }
-}
-
-// Mock interpreter for testing
-function interpretHttpMock<A>(
-  program: Free<HttpF<any>, A>,
-  mock: Record<string, any>
-): A {
-  if (program.tag === 'Pure') {
-    return program.value;
-  }
-
-  const { functor, continue: cont } = program;
-
-  switch (functor.type) {
-    case 'Get':
-      const getData = mock[functor.url] || null;
-      const getNext = functor.continue(getData);
-      return interpretHttpMock(cont(getNext), mock);
-
-    case 'Post':
-      const postData = { id: 1, ...functor.body };
-      const postNext = functor.continue(postData);
-      return interpretHttpMock(cont(postNext), mock);
-
-    case 'Delete':
-      const delNext = functor.continue();
-      return interpretHttpMock(cont(delNext), mock);
-  }
-}
+-- Mock interpreter
+runHttpMock :: Map String Response -> Http a -> a
+runHttpMock _ (Pure a) = a
+runHttpMock mocks (Free (Get url cont)) =
+  let resp = Map.findWithDefault emptyResp url mocks
+  in runHttpMock mocks (cont resp)
+runHttpMock mocks (Free (Post _ _ cont)) =
+  runHttpMock mocks (cont okResp)
+runHttpMock mocks (Free (Delete _ next)) =
+  runHttpMock mocks next
 ```
 
 ## Combining DSLs
 
-```typescript
-// Combined operations
-type AppF<A> = ConsoleF<A> | HttpF<A>;
+Use coproducts to combine multiple DSLs:
 
-// Lift operations
-function liftConsole<A>(fa: ConsoleF<A>): Free<AppF<A>, any> {
-  return liftF(fa, (a) => pure(a));
-}
+```haskell
+{-# LANGUAGE TypeOperators #-}
 
-function liftHttp<A>(fa: HttpF<A>): Free<AppF<A>, any> {
-  return liftF(fa, (a) => pure(a));
-}
+import Data.Functor.Sum
 
-// Combined program
-function fetchAndDisplay(id: number): Free<AppF<any>, void> {
-  return flatMap(
-    print('Fetching user...'),
-    () => flatMap(
-      get(`/api/users/${id}`),
-      (user) => print(`User: ${user.name}`)
-    )
-  );
-}
+-- Combine two functors
+type (:+:) = Sum
 
-// Combined interpreter
-async function interpretApp<A>(
-  program: Free<AppF<any>, A>
-): Promise<A> {
-  if (program.tag === 'Pure') {
-    return program.value;
-  }
+-- Inject left
+injectL :: f a -> (f :+: g) a
+injectL = InL
 
-  const { functor, continue: cont } = program;
+-- Inject right
+injectR :: g a -> (f :+: g) a
+injectR = InR
 
-  if ('type' in functor) {
-    switch (functor.type) {
-      case 'Print':
-        console.log(functor.message);
-        return interpretApp(cont(functor.next));
+-- Combined DSL
+type App = Free (ConsoleF :+: HttpF)
 
-      case 'Read':
-        const input = prompt('Input:') || '';
-        const next = functor.continue(input);
-        return interpretApp(cont(next));
+-- Smart constructors with injection
+printLine' :: String -> App ()
+printLine' msg = liftF (injectL (Print msg ()))
 
-      case 'Get':
-        const resp = await fetch(functor.url);
-        const data = await resp.json();
-        const getNext = functor.continue(data);
-        return interpretApp(cont(getNext));
+readLine' :: App String
+readLine' = liftF (injectL (ReadLine id))
 
-      // ... other cases
-    }
-  }
+httpGet' :: String -> App Response
+httpGet' url = liftF (injectR (Get url id))
 
-  throw new Error('Unknown functor');
-}
+-- Program using both DSLs
+fetchAndDisplay :: Int -> App ()
+fetchAndDisplay userId = do
+  printLine' "Fetching user..."
+  resp <- httpGet' ("/users/" ++ show userId)
+  printLine' $ "User: " ++ show resp
+
+-- Interpreter
+runApp :: App a -> IO a
+runApp (Pure a) = return a
+runApp (Free (InL (Print msg next))) = do
+  putStrLn msg
+  runApp next
+runApp (Free (InL (ReadLine cont))) = do
+  input <- getLine
+  runApp (cont input)
+runApp (Free (InR (Get url cont))) = do
+  resp <- Network.httpGet url
+  runApp (cont resp)
+-- ... other cases
 ```
 
-## Optimization: Inspect Before Running
+## Freer Monads
 
-```typescript
-// Optimize: batch HTTP requests
-function optimize<A>(program: Free<HttpF<any>, A>): Free<HttpF<any>, A> {
-  const requests: Array<{ type: 'Get' | 'Post'; url: string }> = [];
+Use freer monads for easier composition:
 
-  function collectRequests(prog: Free<HttpF<any>, any>): void {
-    if (prog.tag === 'Free') {
-      const { functor } = prog;
-      if (functor.type === 'Get' || functor.type === 'Post') {
-        requests.push({ type: functor.type, url: functor.url });
-      }
-    }
-  }
+```haskell
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 
-  collectRequests(program);
+import Control.Monad.Freer
+import Control.Monad.Freer.Internal
 
-  // Could batch these, reorder for caching, etc.
-  console.log('Requests to execute:', requests);
+-- Effects as GADTs
+data Console r where
+  PrintLine :: String -> Console ()
+  ReadLine :: Console String
 
-  return program;
-}
+data Http r where
+  HttpGet :: String -> Http Response
+  HttpPost :: String -> Body -> Http Response
 
-// Test optimized execution
-const prog = flatMap(
-  get('/api/users/1'),
-  () => get('/api/users/2')
-);
+-- Smart constructors
+printLine :: Member Console effs => Eff effs ()
+printLine msg = send (PrintLine msg)
 
-const optimized = optimize(prog);
-// Logs: Requests to execute: [{ type: 'Get', url: '/api/users/1' }, ...]
+readLine :: Member Console effs => Eff effs String
+readLine = send ReadLine
+
+httpGet :: Member Http effs => String -> Eff effs Response
+httpGet url = send (HttpGet url)
+
+-- Program using multiple effects
+program :: (Member Console effs, Member Http effs) => Eff effs ()
+program = do
+  printLine "Enter user ID:"
+  userId <- readLine
+  resp <- httpGet ("/users/" ++ userId)
+  printLine $ "User: " ++ show resp
+
+-- Interpreters
+runConsole :: Eff (Console ': effs) a -> Eff effs a
+runConsole = interpret $ \case
+  PrintLine msg -> liftIO $ putStrLn msg
+  ReadLine -> liftIO getLine
+
+runHttp :: Eff (Http ': effs) a -> Eff effs a
+runHttp = interpret $ \case
+  HttpGet url -> liftIO $ Network.httpGet url
+  HttpPost url body -> liftIO $ Network.httpPost url body
+
+-- Run program
+main :: IO ()
+main = runM $ runHttp $ runConsole program
 ```
 
-## Real-World: Database DSL
+## Optimizing Free Programs
 
-```typescript
-// Database operations
-type DbF<A> =
-  | { type: 'Query'; sql: string; continue: (rows: any[]) => A }
-  | { type: 'Execute'; sql: string; continue: (result: any) => A }
-  | { type: 'Transaction'; operations: Free<DbF<any>, any>[]; continue: (results: any[]) => A };
+Inspect and optimize before execution:
 
-function query(sql: string): Free<DbF<any>, any[]> {
-  return liftF(
-    { type: 'Query', sql, continue: (x) => x },
-    (rows) => pure(rows)
-  );
-}
+```haskell
+-- Analyze program
+countOperations :: Free HttpF a -> Int
+countOperations (Pure _) = 0
+countOperations (Free (Get _ cont)) = 1 + countOperations cont
+countOperations (Free (Post _ _ cont)) = 1 + countOperations cont
+countOperations (Free (Delete _ next)) = 1 + countOperations next
 
-function execute(sql: string): Free<DbF<any>, any> {
-  return liftF(
-    { type: 'Execute', sql, continue: (x) => x },
-    (result) => pure(result)
-  );
-}
+-- Batch requests
+batchGets :: Free HttpF a -> ([String], Free HttpF a)
+batchGets (Pure a) = ([], Pure a)
+batchGets (Free (Get url cont)) =
+  let (urls, rest) = batchGets cont
+  in (url : urls, rest)
+batchGets prog = ([], prog)
 
-function transaction(
-  operations: Free<DbF<any>, any>[]
-): Free<DbF<any>, any[]> {
-  return liftF(
-    { type: 'Transaction', operations, continue: (x) => x },
-    (results) => pure(results)
-  );
-}
+-- Optimize: batch consecutive GETs
+optimizeHttp :: Free HttpF a -> Free HttpF a
+optimizeHttp prog =
+  let (urls, rest) = batchGets prog
+  in if null urls
+    then prog
+    else Free (BatchGet urls (\resps -> continue resps rest))
+```
 
-// Business logic
-function transferFunds(
-  fromId: number,
-  toId: number,
-  amount: number
-): Free<DbF<any>, void> {
-  return flatMap(
-    transaction([
-      execute(`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromId}`),
-      execute(`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toId}`)
-    ]),
-    () => pure(undefined)
-  );
-}
+## Database DSL
 
-// Interpreter: real database
-async function interpretDb<A>(program: Free<DbF<any>, A>): Promise<A> {
-  if (program.tag === 'Pure') {
-    return program.value;
-  }
+```haskell
+data DatabaseF next
+  = Query String ([Row] -> next)
+  | Execute String (Int -> next)
+  | Transaction (Free DatabaseF ()) next
+  deriving Functor
 
-  const { functor, continue: cont } = program;
+type Database = Free DatabaseF
 
-  switch (functor.type) {
-    case 'Query':
-      const rows = await db.query(functor.sql);
-      const queryNext = functor.continue(rows);
-      return interpretDb(cont(queryNext));
+-- Smart constructors
+query :: String -> Database [Row]
+query sql = liftF (Query sql id)
 
-    case 'Execute':
-      const result = await db.execute(functor.sql);
-      const execNext = functor.continue(result);
-      return interpretDb(cont(execNext));
+execute :: String -> Database Int
+execute sql = liftF (Execute sql id)
 
-    case 'Transaction':
-      await db.beginTransaction();
-      try {
-        const results = await Promise.all(
-          functor.operations.map(interpretDb)
-        );
-        await db.commit();
-        const txNext = functor.continue(results);
-        return interpretDb(cont(txNext));
-      } catch (e) {
-        await db.rollback();
-        throw e;
-      }
-  }
-}
+transaction :: Database () -> Database ()
+transaction ops = liftF (Transaction ops ())
+
+-- Business logic
+transferFunds :: Int -> Int -> Int -> Database ()
+transferFunds fromId toId amount = transaction $ do
+  execute $ "UPDATE accounts SET balance = balance - "
+    ++ show amount ++ " WHERE id = " ++ show fromId
+  execute $ "UPDATE accounts SET balance = balance + "
+    ++ show amount ++ " WHERE id = " ++ show toId
+
+-- Real database interpreter
+runDB :: Connection -> Database a -> IO a
+runDB _ (Pure a) = return a
+runDB conn (Free (Query sql cont)) = do
+  rows <- DB.query conn sql
+  runDB conn (cont rows)
+runDB conn (Free (Execute sql cont)) = do
+  affected <- DB.execute conn sql
+  runDB conn (cont affected)
+runDB conn (Free (Transaction ops next)) = do
+  DB.begin conn
+  result <- catch
+    (runDB conn ops >> DB.commit conn >> return True)
+    (\e -> DB.rollback conn >> return False)
+  runDB conn next
+
+-- Mock interpreter (for testing)
+runDBMock :: Database a -> (a, [String])
+runDBMock prog = run [] prog
+  where
+    run log (Pure a) = (a, reverse log)
+    run log (Free (Query sql cont)) =
+      run (("QUERY: " ++ sql) : log) (cont [])
+    run log (Free (Execute sql cont)) =
+      run (("EXEC: " ++ sql) : log) (cont 1)
+    run log (Free (Transaction ops next)) =
+      let (_, txLog) = run [] ops
+      in run (("BEGIN" : txLog ++ ["COMMIT"]) ++ log) next
+```
+
+## Church-Encoded Free
+
+More efficient representation:
+
+```haskell
+-- Church encoding
+newtype FreeC f a = FreeC
+  { runFreeC :: forall r. (a -> r) -> (f r -> r) -> r }
+
+instance Functor (FreeC f) where
+  fmap f (FreeC run) = FreeC $ \pure' bind' ->
+    run (pure' . f) bind'
+
+instance Applicative (FreeC f) where
+  pure a = FreeC $ \pure' _ -> pure' a
+  FreeC runF <*> FreeC runA = FreeC $ \pure' bind' ->
+    runF (\f -> runA (\a -> pure' (f a)) bind') bind'
+
+instance Monad (FreeC f) where
+  FreeC run >>= f = FreeC $ \pure' bind' ->
+    run (\a -> runFreeC (f a) pure' bind') bind'
+
+-- Lift
+liftFC :: Functor f => f a -> FreeC f a
+liftFC fa = FreeC $ \pure' bind' -> bind' (fmap pure' fa)
+
+-- Interpreter
+foldFreeC :: Monad m => (forall x. f x -> m x) -> FreeC f a -> m a
+foldFreeC interp (FreeC run) =
+  run return (>>= interp)
+```
+
+## Real-World: Test Framework
+
+```haskell
+data TestF next
+  = Describe String (Free TestF ()) next
+  | It String (IO ()) next
+  | BeforeEach (IO ()) next
+  deriving Functor
+
+type Test = Free TestF
+
+-- DSL
+describe :: String -> Test () -> Test ()
+describe name tests = liftF (Describe name tests ())
+
+it :: String -> IO () -> Test ()
+it name test = liftF (It name test ())
+
+beforeEach :: IO () -> Test ()
+beforeEach action = liftF (BeforeEach action ())
+
+-- Example test suite
+userTests :: Test ()
+userTests = describe "User module" $ do
+  beforeEach $ putStrLn "Setting up..."
+
+  it "creates a user" $ do
+    user <- createUser "Alice"
+    userName user `shouldBe` "Alice"
+
+  it "finds a user" $ do
+    user <- findUser 1
+    userId user `shouldBe` 1
+
+-- Runner
+runTests :: Test () -> IO ()
+runTests (Pure ()) = return ()
+runTests (Free (Describe name tests next)) = do
+  putStrLn $ "\n" ++ name
+  runTests tests
+  runTests next
+runTests (Free (It name test next)) = do
+  putStr $ "  ✓ " ++ name
+  test
+  putStrLn ""
+  runTests next
+runTests (Free (BeforeEach action next)) = do
+  action
+  runTests next
 ```
 
 ## Key Takeaways
 
-1. **Separation of concerns** - program description vs execution
+1. **Separate description from execution** - programs are data
 2. **Multiple interpreters** - prod, test, mock, optimize
 3. **Inspection** - analyze programs before running
-4. **Type safety** - operations are well-typed data
+4. **Type safe** - operations are well-typed
 5. **Composition** - build complex programs from simple operations
 
-Free monads enable truly declarative programming. Build programs as pure data, interpret them however you need. This is the foundation of libraries like Cats Effect and ZIO.
+Free monads enable truly declarative programming. Build programs as pure data, interpret them however you need. This is the foundation of libraries like purescript-halogen and polysemy.
