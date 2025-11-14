@@ -1,0 +1,75 @@
+---
+import { getCollection, render } from "astro:content";
+import config, { monolocale } from "$config";
+import Time from "$utils/time";
+import Base from "$layouts/Base.astro";
+import Icon from "$components/Icon.astro";
+import Position from "$components/Position.astro";
+import Sensitive from "$components/Sensitive.svelte";
+import i18nit from "$i18n";
+
+export async function getStaticPaths() {
+	// Get all notes excluding drafts
+	const notes = await getCollection("note", note => !note.data.draft);
+
+	return notes.map(note => {
+		let locale: string | undefined;
+		let id: string;
+
+		if (monolocale) {
+			locale = undefined;
+			id = note.id;
+		} else {
+			// Extract language and note ID from file path structure
+			const [language, ...ids] = note.id.split("/");
+
+			locale = config.i18n.defaultLocale === language ? undefined : language;
+			id = ids.join("/");
+		}
+
+		// Generate path params with optional locale (omit for default locale)
+		return { params: { locale, id }, props: { note } };
+	});
+}
+
+const { locale = config.i18n.defaultLocale } = Astro.params;
+const { note } = Astro.props;
+const { Content, remarkPluginFrontmatter: frontmatter } = await render(note);
+
+const t = i18nit(locale);
+---
+
+<Base title={note.data.title} {locale} description={note.data.description} article={{ timestamp: note.data.timestamp, tags: note.data.tags }}>
+	<main class="flex flex-col gap-6">
+		<header class="flex flex-col gap-4">
+			<h1 class="text-3xl">{note.data.title}</h1>
+			<div class="flex flex-col gap-3 sm:flex-row children:(flex items-center gap-1 text-3.5 c-secondary)">
+				<time datetime={note.data.timestamp.toISOString()}><Icon name="lucide:calendar" />{Time(note.data.timestamp)}</time>
+				{
+					note.data.tags?.length && (
+						<span>
+							<Icon name="lucide:hash" />
+							{note.data.tags?.join("; ")}
+						</span>
+					)
+				}
+				{
+					note.data.series && (
+						<span>
+							<Icon name="lucide:bookmark" />
+							{note.data.series}
+						</span>
+					)
+				}
+				<span><Icon name="lucide:pilcrow" />{t("read.words", { words: frontmatter.words })}</span>
+			</div>
+			<hr class="b-b b-b-solid b-weak" />
+		</header>
+
+		<Sensitive {locale} back="/" sensitive={note.data.sensitive} client:load>
+			<section id="markdown-content" class="markdown"><Content /></section>
+		</Sensitive>
+
+		<Position {locale} />
+	</main>
+</Base>
