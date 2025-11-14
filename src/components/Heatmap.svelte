@@ -55,7 +55,7 @@ jottings.forEach(jotting => {
 						<p class="my-1">{t("home.heatmap.note", { count: day.notes.length })}：</p>
 						<ul class="flex flex-col gap-0.5">
 							{#each day.notes as note}
-								<a href={getRelativeLocaleUrl(locale, `/note/${note.id.split("/").slice(1).join("/")}`)} aria-label={note.data.title} class="ml-1 link">{note.data.title}</a>
+								<a href={getRelativeLocaleUrl(locale, `/${note.id.split("/").slice(1).join("/")}`)} aria-label={note.data.title} class="ml-1 link">{note.data.title}</a>
 							{/each}
 						</ul>
 					{/if}

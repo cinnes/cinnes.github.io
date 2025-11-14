@@ -1,11 +1,9 @@
 ---
-import type { MarkdownHeading } from "astro";
 import { getCollection, render } from "astro:content";
 import config, { monolocale } from "$config";
 import Time from "$utils/time";
 import Base from "$layouts/Base.astro";
 import Icon from "$components/Icon.astro";
-import TOC from "$components/note/TOC.astro";
 import Position from "$components/Position.astro";
 import Sensitive from "$components/Sensitive.svelte";
 import i18nit from "$i18n";
@@ -36,48 +34,17 @@ export async function getStaticPaths() {
 
 const { locale = config.i18n.defaultLocale } = Astro.params;
 const { note } = Astro.props;
-
-// Render markdown content and extract headings for TOC
-const { Content, headings, remarkPluginFrontmatter: frontmatter } = await render(note);
-
-// Build hierarchical table of contents from flat heading list
-type Heading = MarkdownHeading & { subheadings: Heading[] };
-const tableOfContents: Heading[] = [];
-const stack: Heading[] = [];
-for (const item of headings) {
-	// Pop headings from stack that are at same or deeper level
-	while (stack[stack.length - 1]?.depth >= item.depth) stack.pop();
-	const heading: Heading = { ...item, subheadings: [] };
-
-	if (stack.length > 0) {
-		// Add as subheading to current parent
-		const parent = stack[stack.length - 1];
-		parent.subheadings.push(heading);
-	} else {
-		// Add as top-level heading
-		tableOfContents.push(heading);
-	}
-
-	stack.push(heading);
-}
+const { Content, remarkPluginFrontmatter: frontmatter } = await render(note);
 
 const t = i18nit(locale);
 ---
 
-<Base title={note.data.title} {locale} description={note.data.description} article={{ timestamp: note.data.timestamp, section: note.data.series, tags: note.data.tags }}>
+<Base title={note.data.title} {locale} description={note.data.description} article={{ timestamp: note.data.timestamp, tags: note.data.tags }}>
 	<main class="flex flex-col gap-6">
 		<header class="flex flex-col gap-4">
 			<h1 class="text-3xl">{note.data.title}</h1>
 			<div class="flex flex-col gap-3 sm:flex-row children:(flex items-center gap-1 text-3.5 c-secondary)">
 				<time datetime={note.data.timestamp.toISOString()}><Icon name="lucide:calendar" />{Time(note.data.timestamp)}</time>
-				{
-					note.data.series && (
-						<span>
-							<Icon name="lucide:layers" />
-							{note.data.series}
-						</span>
-					)
-				}
 				{
 					note.data.tags?.length && (
 						<span>
@@ -86,27 +53,21 @@ const t = i18nit(locale);
 						</span>
 					)
 				}
+				{
+					note.data.series && (
+						<span>
+							<Icon name="lucide:bookmark" />
+							{note.data.series}
+						</span>
+					)
+				}
 				<span><Icon name="lucide:pilcrow" />{t("read.words", { words: frontmatter.words })}</span>
 			</div>
 			<hr class="b-b b-b-solid b-weak" />
 		</header>
 
-		<Sensitive {locale} back="/note" sensitive={note.data.sensitive} client:load>
-			<div class="flex gap-5">
-				<section id="markdown-content" class="markdown"><Content /></section>
-				{
-					note.data.toc && (
-						<aside class="hidden sm:(block flex-shrink-0 w-200px)">
-							<div class="sticky top-3 flex flex-col gap-2">
-								<h3>{t("note.contents")}</h3>
-								<nav class="overflow-y-auto">
-									<TOC headings={tableOfContents} />
-								</nav>
-							</div>
-						</aside>
-					)
-				}
-			</div>
+		<Sensitive {locale} back="/" sensitive={note.data.sensitive} client:load>
+			<section id="markdown-content" class="markdown"><Content /></section>
 		</Sensitive>
 
 		<Position {locale} />
