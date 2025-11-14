@@ -1,0 +1,20 @@
+"2025-11-14":
+  - Migrated blog to Astro with ThoughtLite theme
+  - Converted all posts to Haskell examples
+  - Added advanced FP topics (HKT, STM, Optics, Free Monads)
+
+"2025-11-01":
+  - ~Started writing about React and Next.js
+  - Decided to focus on advanced functional programming
+
+"2025-10-01":
+  - Deep dive into Haskell's type system
+  - Exploring lens library and optics patterns
+
+"2025-09-01":
+  - Learning Software Transactional Memory
+  - Building concurrent systems with STM
+
+"2025-08-01":
+  - Started exploring higher-kinded types
+  - Understanding type class hierarchies
